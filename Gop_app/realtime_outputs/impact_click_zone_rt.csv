@@ -1,0 +1,2 @@
+buffer_radius_m,num_points_in_zone,cell_area_m2,flooded_area_m2,flooded_area_pct,pop_total,pop_exposed,pop_exposed_pct,road_total_proxy,road_exposed_proxy,road_exposed_pct,impact_score,priority_level
+300,35,5.703903512956427,5.703903512956427,0.028571428571285456,105.39342084837135,1.7934783815788893,0.017016986137513603,1.7388920249598965,0.0533314978461426,0.0306698156354491,1.7909113342684853,Thấp

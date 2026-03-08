@@ -1,0 +1,11 @@
+shelter_id,name,lat,lon,capacity,type,is_open
+S001,Shelter 1,18.778399,105.589749,100,clinic,1
+S002,Shelter 2,18.778251,105.581221,500,clinic,1
+S003,Shelter 3,18.777609,105.581108,500,temple,1
+S004,Shelter 4,18.790268,105.587851,100,community,1
+S005,Shelter 5,18.782194,105.604463,150,community,1
+S006,Shelter 6,18.774298,105.58341,200,clinic,1
+S007,Shelter 7,18.775209,105.596161,300,school,1
+S008,Shelter 8,18.798054,105.599382,500,gov,1
+S009,Shelter 9,18.778551,105.581778,200,school,1
+S010,Shelter 10,18.785863,105.593404,200,community,1

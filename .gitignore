@@ -1,0 +1,5 @@
+*.csv
+*.csv.gz
+Gop_app/cache/
+Gop_app/data/
+Gop_app/*.csv
