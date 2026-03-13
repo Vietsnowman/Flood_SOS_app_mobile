@@ -160,7 +160,7 @@ pip install streamlit pandas numpy folium streamlit-folium pyproj scikit-learn \
   joblib alphashape osmnx networkx scikit-image streamlit-autorefresh streamlit-geolocation
 
 # Chạy dashboard
-streamlit run main_unified.py
+python -m streamlit run main_unified.py
 
 > **⚠️ LƯU Ý QUAN TRỌNG:** Đảm bảo tải các file dữ liệu (DanSo_Xa.csv, shelters.csv, ...) vào `data` và chạy gộp dữ liệu bằng `python 0_merge_data.py`. File kết quả sẽ nằm trong `cache/merged.csv`.
 ```
