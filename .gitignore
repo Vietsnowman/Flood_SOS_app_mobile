@@ -46,3 +46,20 @@ Floodsos/frontend-flutter/.packages
 *.swo
 Thumbs.db
 .DS_Store
+
+# File môi trường
+.env
+*.env
+# Database
+*.db
+*.sqlite3
+# Cache & build
+__pycache__/
+*.pyc
+.dart_tool/
+build/
+# Flutter
+.flutter-plugins
+.flutter-plugins-dependencies
+# Node.js
+node_modules/
