@@ -1,0 +1,15 @@
+Terminal 1: cd Gop_app
+python 0_merge_data.py(step1)
+python -m streamlit run main_unified.py(Step4)
+
+Terminal 2: cd Gop_app
+python scheduler_cache.py(step2)
+
+Terminal 3: cd Gop_app
+python realtime.py(step3)
+
+Terminal 4: cd Gop_app -> cd Sos-Backend
+npm start(step5)
+
+Terminal 5: cd Gop_app -> cd frontend-Flutter
+flutter build windows(step6)

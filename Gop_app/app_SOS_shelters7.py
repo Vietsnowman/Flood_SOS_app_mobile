@@ -22,7 +22,7 @@ from streamlit_folium import st_folium
 from pyproj import Transformer
 from streamlit_autorefresh import st_autorefresh
 
-from folium.plugins import HeatMap
+from folium.plugins import HeatMap, AntPath
 from shapely.geometry import Polygon, mapping
 from shapely.ops import unary_union
 
@@ -585,7 +585,31 @@ def shortest_route(G, start_lat, start_lon, end_lat, end_lon):
 
 
 def draw_route(map_obj, coords, color="blue"):
-    folium.PolyLine(locations=coords, weight=6, opacity=0.9, color=color).add_to(map_obj)
+    """Draw an animated AntPath route + a rescue team icon at the midpoint."""
+    # Animated "ant" route – white dashes flowing on the route line
+    AntPath(
+        locations=coords,
+        delay=800,
+        weight=6,
+        color=color,
+        pulse_color="white",
+        dash_array=[20, 30],
+        opacity=0.9,
+    ).add_to(map_obj)
+
+    # Place a 🚑 icon at the midpoint of the route to show the rescue team
+    mid = coords[len(coords) // 2]
+    folium.Marker(
+        location=mid,
+        popup="🚑 Đội cứu hộ đang trên đường",
+        icon=folium.DivIcon(
+            html=(
+                '<div style="font-size:26px;text-align:center;margin-top:-13px;">🚑</div>'
+            ),
+            icon_size=(34, 34),
+            icon_anchor=(17, 17),
+        ),
+    ).add_to(map_obj)
 
 
 # # =========================================================
@@ -659,7 +683,7 @@ else:
     st.sidebar.info("Chưa có GPS. Hãy Allow location (nếu không được, thử HTTPS hoặc đổi browser).")
 
 # # Tabs
-tab1, tab2 = st.tabs(["🚑 Rescue Dashboard", "🧍 Citizen Map"])
+tab1, tab2, tab3 = st.tabs(["🚑 Rescue Dashboard", "🧍 Citizen Map", "📋 Điều Phối SOS"])
 
 
 # # =========================================================
@@ -677,6 +701,10 @@ with tab1:
     except Exception as e:
         st.error(f"❌ Lỗi đọc realtime CSV: {e}")
         st.stop()
+
+    if st.session_state.get("base_lat") is None:
+        st.session_state["base_lat"] = float(prob_df["lat"].mean())
+        st.session_state["base_lon"] = float(prob_df["lon"].mean())
 
     sos_df = load_sos()
     shelters_df = load_shelters()
@@ -819,10 +847,57 @@ with tab1:
                     float(base_lat), float(base_lon),
                     float(selected_sos["lat"]), float(selected_sos["lon"])
                 )
-                draw_route(m, route_coords, color="blue")
-                m.fit_bounds(route_coords, padding=(30, 30))
+                _eta_direct_en = route_dist_m / 1000 / 30 * 60
+                ETA_THRESHOLD_MIN = 60
+                _two_leg_info_en = None
+
+                if _eta_direct_en > ETA_THRESHOLD_MIN and shelters_df is not None and len(shelters_df) > 0:
+                    _sh_en = find_nearest_shelter(
+                        float(selected_sos["lat"]), float(selected_sos["lon"]), shelters_df
+                    )
+                    if _sh_en is not None:
+                        sh_lat_en, sh_lon_en = float(_sh_en["lat"]), float(_sh_en["lon"])
+                        try:
+                            coords_l1, dist_l1 = shortest_route(G, float(base_lat), float(base_lon), sh_lat_en, sh_lon_en)
+                            draw_route(m, coords_l1, color="blue")
+                        except Exception:
+                            coords_l1, dist_l1 = None, 0.0
+                        try:
+                            coords_l2, dist_l2 = shortest_route(G, sh_lat_en, sh_lon_en, float(selected_sos["lat"]), float(selected_sos["lon"]))
+                            draw_route(m, coords_l2, color="orange")
+                        except Exception:
+                            coords_l2 = [[sh_lat_en, sh_lon_en], [float(selected_sos["lat"]), float(selected_sos["lon"])]]
+                            dist_l2 = 0.0
+                            folium.PolyLine(coords_l2, color="orange", weight=4, dash_array="8 8").add_to(m)
+                        folium.Marker(
+                            [sh_lat_en, sh_lon_en],
+                            popup=f"🏠 Staging: {_sh_en.get('name','Staging Point')}<br>Direct ETA too large ({_eta_direct_en:.0f} min)",
+                            icon=folium.DivIcon(
+                                html='<div style="font-size:26px;text-align:center;margin-top:-13px;">🏠</div>',
+                                icon_size=(34, 34), icon_anchor=(17, 17),
+                            ),
+                        ).add_to(m)
+                        if coords_l1:
+                            m.fit_bounds(list(coords_l1) + list(coords_l2), padding=(30, 30))
+                        _two_leg_info_en = {
+                            "shelter_name": str(_sh_en.get("name", "Staging Point")),
+                            "dist_leg1_km": dist_l1 / 1000,
+                            "dist_leg2_km": dist_l2 / 1000,
+                            "eta_leg1_min": int(dist_l1 / 1000 / 30 * 60),
+                            "eta_leg2_min": int(dist_l2 / 1000 / 30 * 60),
+                        }
+                    else:
+                        draw_route(m, route_coords, color="blue")
+                        m.fit_bounds(route_coords, padding=(30, 30))
+                else:
+                    draw_route(m, route_coords, color="blue")
+                    m.fit_bounds(route_coords, padding=(30, 30))
             except Exception as e:
                 st.warning(f"⚠️ Không tính được route: {e}")
+                _two_leg_info_en = None
+        else:
+            _two_leg_info_en = None
+
 
     layer_risk.add_to(m)
     if show_extent:
@@ -850,6 +925,72 @@ with tab1:
             st.info(f"Rescue Base: lat={base_lat:.6f}, lon={base_lon:.6f}")
         else:
             st.warning("Chưa đặt Rescue Base (click map hoặc bật GPS base).")
+
+        # ---- Rescue Dispatch Visual (English tab) ----
+        if selected_sos is not None and base_lat is not None and base_lon is not None and G is not None:
+            try:
+                _, dist_m_panel = shortest_route(
+                    G,
+                    float(base_lat), float(base_lon),
+                    float(selected_sos["lat"]), float(selected_sos["lon"])
+                )
+                dist_km_panel = dist_m_panel / 1000
+                eta_min_panel = int(dist_km_panel / 30 * 60)
+                st.markdown("---")
+
+                if "_two_leg_info_en" in dir() and _two_leg_info_en is not None:
+                    ti_en = _two_leg_info_en
+                    st.markdown(
+                        f"""
+                        <div style="background:linear-gradient(135deg,#7b2d00,#b34700);
+                                    border-radius:12px;padding:16px;color:white;text-align:center;">
+                            <div style="font-size:13px;font-weight:bold;opacity:0.9;">⚠️ Direct ETA too large ({eta_min_panel} min)</div>
+                            <div style="font-size:13px;margin-top:4px;opacity:0.9;">Re-routing via staging shelter</div>
+                            <div style="font-size:36px;margin-top:8px;">🚑 ➡️ 🏠 ➡️ 🆘</div>
+                            <div style="font-size:15px;font-weight:bold;margin-top:10px;">
+                                🏠 Staging: {ti_en['shelter_name']}
+                            </div>
+                            <div style="font-size:13px;margin-top:6px;opacity:0.85;">
+                                Leg 1 (base → shelter): <b>{ti_en['dist_leg1_km']:.2f} km</b> | ~{ti_en['eta_leg1_min']} min
+                            </div>
+                            <div style="font-size:13px;margin-top:4px;opacity:0.85;">
+                                Leg 2 (shelter → SOS): <b>{ti_en['dist_leg2_km']:.2f} km</b> | ~{ti_en['eta_leg2_min']} min
+                            </div>
+                            <div style="font-size:13px;margin-top:4px;font-weight:bold;">
+                                Total ETA: ~{ti_en['eta_leg1_min'] + ti_en['eta_leg2_min']} min
+                            </div>
+                            <div style="margin-top:10px;font-size:20px;">🚧🌊🏠</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    st.warning("🟠 2-leg route active — map: blue (leg 1), orange (leg 2).")
+                else:
+                    st.markdown(
+                        f"""
+                        <div style="background:linear-gradient(135deg,#1a472a,#2d6a4f);
+                                    border-radius:12px;padding:16px;color:white;text-align:center;">
+                            <div style="font-size:48px;">🚑</div>
+                            <div style="font-size:18px;font-weight:bold;margin-top:8px;">
+                                RESCUE TEAM DISPATCHED
+                            </div>
+                            <div style="font-size:14px;margin-top:6px;opacity:0.85;">
+                                Target SOS: <b>{selected_sos.get('id','')}</b>
+                            </div>
+                            <div style="font-size:14px;margin-top:4px;opacity:0.85;">
+                                Distance: <b>{dist_km_panel:.2f} km</b>
+                            </div>
+                            <div style="font-size:14px;margin-top:4px;opacity:0.85;">
+                                ETA (est.): <b>~{eta_min_panel} min</b>
+                            </div>
+                            <div style="margin-top:10px;font-size:22px;">🚧🌊🏠</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    st.success("🟢 Rescue team en route — follow the animated path on the map.")
+            except Exception:
+                pass
 
         if map_data and map_data.get("last_clicked"):
             click_lat = map_data["last_clicked"]["lat"]
@@ -1735,7 +1876,29 @@ def shortest_route(G, start_lat, start_lon, end_lat, end_lon):
 
 
 def draw_route(map_obj, coords, color="blue"):
-    folium.PolyLine(locations=coords, weight=6, opacity=0.9, color=color).add_to(map_obj)
+    """Draw an animated AntPath route + a rescue team icon at the midpoint."""
+    AntPath(
+        locations=coords,
+        delay=800,
+        weight=6,
+        color=color,
+        pulse_color="white",
+        dash_array=[20, 30],
+        opacity=0.9,
+    ).add_to(map_obj)
+
+    mid = coords[len(coords) // 2]
+    folium.Marker(
+        location=mid,
+        popup="🚑 Đội cứu hộ đang trên đường",
+        icon=folium.DivIcon(
+            html=(
+                '<div style="font-size:26px;text-align:center;margin-top:-13px;">🚑</div>'
+            ),
+            icon_size=(34, 34),
+            icon_anchor=(17, 17),
+        ),
+    ).add_to(map_obj)
 
 
 # =========================================================
@@ -1766,6 +1929,10 @@ with tab1:
     except Exception as e:
         st.error(f"❌ Lỗi đọc realtime CSV: {e}")
         st.stop()
+
+    if st.session_state.get("base_lat") is None:
+        st.session_state["base_lat"] = float(prob_df["lat"].mean())
+        st.session_state["base_lon"] = float(prob_df["lon"].mean())
 
     sos_df = load_sos()
     shelters_df = load_shelters()
@@ -1991,10 +2158,72 @@ if selected_sos is not None:
                 float(base_lat), float(base_lon),
                 float(selected_sos["lat"]), float(selected_sos["lon"])
             )
-            draw_route(m, route_coords, color="blue")
-            m.fit_bounds(route_coords, padding=(30, 30))
+            _eta_direct = _dist_m / 1000 / 30 * 60  # phút, tốc độ 30 km/h
+
+            ETA_THRESHOLD_MIN = 60  # ngưỡng: nếu > 60 phút → dùng shelter trung gian
+            _two_leg_info = None
+
+            if _eta_direct > ETA_THRESHOLD_MIN and shelters_df is not None and len(shelters_df) > 0:
+                # Tìm shelter gần SOS nhất
+                _sh = find_nearest_shelter(
+                    float(selected_sos["lat"]), float(selected_sos["lon"]), shelters_df
+                )
+                if _sh is not None:
+                    sh_lat, sh_lon = float(_sh["lat"]), float(_sh["lon"])
+
+                    # Leg 1: Căn cứ → Shelter
+                    try:
+                        coords_leg1, dist_leg1 = shortest_route(G, float(base_lat), float(base_lon), sh_lat, sh_lon)
+                        draw_route(m, coords_leg1, color="blue")
+                    except Exception:
+                        coords_leg1, dist_leg1 = None, 0.0
+
+                    # Leg 2: Shelter → SOS (đường thẳng nếu graph lỗi)
+                    try:
+                        coords_leg2, dist_leg2 = shortest_route(G, sh_lat, sh_lon, float(selected_sos["lat"]), float(selected_sos["lon"]))
+                        draw_route(m, coords_leg2, color="orange")
+                    except Exception:
+                        coords_leg2 = [[sh_lat, sh_lon], [float(selected_sos["lat"]), float(selected_sos["lon"])]]
+                        dist_leg2 = 0.0
+                        folium.PolyLine(coords_leg2, color="orange", weight=4, dash_array="8 8").add_to(m)
+
+                    # Marker điểm tập kết shelter
+                    folium.Marker(
+                        [sh_lat, sh_lon],
+                        popup=f"🏠 Điểm tập kết: {_sh.get('name','Trạm trung chuyển')}<br>ETA trực tiếp quá lớn ({_eta_direct:.0f} phút) — chuyển qua shelter này",
+                        icon=folium.DivIcon(
+                            html='<div style="font-size:26px;text-align:center;margin-top:-13px;">🏠</div>',
+                            icon_size=(34, 34), icon_anchor=(17, 17),
+                        ),
+                    ).add_to(m)
+
+                    if coords_leg1:
+                        all_coords = list(coords_leg1) + list(coords_leg2)
+                        m.fit_bounds(all_coords, padding=(30, 30))
+
+                    _two_leg_info = {
+                        "shelter_name": str(_sh.get("name", "Trạm trung chuyển")),
+                        "sh_lat": sh_lat, "sh_lon": sh_lon,
+                        "dist_leg1_km": dist_leg1 / 1000,
+                        "dist_leg2_km": dist_leg2 / 1000,
+                        "eta_leg1_min": int(dist_leg1 / 1000 / 30 * 60),
+                        "eta_leg2_min": int(dist_leg2 / 1000 / 30 * 60),
+                    }
+                else:
+                    # Không có shelter phù hợp → đi thẳng
+                    draw_route(m, route_coords, color="blue")
+                    m.fit_bounds(route_coords, padding=(30, 30))
+            else:
+                # ETA hợp lý → đi thẳng
+                draw_route(m, route_coords, color="blue")
+                m.fit_bounds(route_coords, padding=(30, 30))
+
         except Exception as e:
             st.warning(f"⚠️ Không tính được tuyến đường: {e}")
+            _two_leg_info = None
+    else:
+        _two_leg_info = None
+
 
 if route_coords is None and selected_sos is not None and base_lat is not None and base_lon is not None:
     m.fit_bounds(
@@ -2050,7 +2279,64 @@ with col2:
                     float(base_lat), float(base_lon),
                     float(selected_sos["lat"]), float(selected_sos["lon"])
                 )
-                st.metric("Khoảng cách tuyến đường (km)", f"{dist_m/1000:.2f}")
+                dist_km = dist_m / 1000
+                eta_min = int(dist_km / 30 * 60)
+                st.metric("Khoảng cách tuyến đường (km)", f"{dist_km:.2f}")
+
+                st.markdown("---")
+
+                # Kiểm tra xem có dùng tuyến 2 chặng không
+                if "_two_leg_info" in dir() and _two_leg_info is not None:
+                    ti = _two_leg_info
+                    st.markdown(
+                        f"""
+                        <div style="background:linear-gradient(135deg,#7b2d00,#b34700);
+                                    border-radius:12px;padding:16px;color:white;text-align:center;">
+                            <div style="font-size:14px;font-weight:bold;opacity:0.9;">⚠️ ETA trực tiếp lớn ({eta_min} phút)</div>
+                            <div style="font-size:14px;margin-top:4px;opacity:0.9;">Chuyển tuyến qua điểm tập kết</div>
+                            <div style="font-size:36px;margin-top:8px;">🚑 ➡️ 🏠 ➡️ 🆘</div>
+                            <div style="font-size:15px;font-weight:bold;margin-top:10px;">
+                                🏠 Trạm tập kết: {ti['shelter_name']}
+                            </div>
+                            <div style="font-size:13px;margin-top:6px;opacity:0.85;">
+                                Chặng 1 (căn cứ → shelter): <b>{ti['dist_leg1_km']:.2f} km</b> | ~{ti['eta_leg1_min']} phút
+                            </div>
+                            <div style="font-size:13px;margin-top:4px;opacity:0.85;">
+                                Chặng 2 (shelter → SOS): <b>{ti['dist_leg2_km']:.2f} km</b> | ~{ti['eta_leg2_min']} phút
+                            </div>
+                            <div style="font-size:13px;margin-top:4px;font-weight:bold;">
+                                Tổng ETA: ~{ti['eta_leg1_min'] + ti['eta_leg2_min']} phút
+                            </div>
+                            <div style="margin-top:10px;font-size:20px;">🚧🌊🏠</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    st.warning("🟠 Tuyến 2 chặng được kích hoạt — xem bản đồ: xanh (chặng 1), cam (chặng 2).")
+                else:
+                    st.markdown(
+                        f"""
+                        <div style="background:linear-gradient(135deg,#1a472a,#2d6a4f);
+                                    border-radius:12px;padding:16px;color:white;text-align:center;">
+                            <div style="font-size:48px;">🚑</div>
+                            <div style="font-size:18px;font-weight:bold;margin-top:8px;">
+                                ĐỘI CỨU HỘ ĐANG TRÊN ĐƯỜNG
+                            </div>
+                            <div style="font-size:14px;margin-top:6px;opacity:0.85;">
+                                Mục tiêu SOS: <b>{selected_sos.get('id','')}</b>
+                            </div>
+                            <div style="font-size:14px;margin-top:4px;opacity:0.85;">
+                                Khoảng cách: <b>{dist_km:.2f} km</b>
+                            </div>
+                            <div style="font-size:14px;margin-top:4px;opacity:0.85;">
+                                ETA ước tính: <b>~{eta_min} phút</b>
+                            </div>
+                            <div style="margin-top:10px;font-size:22px;">🚧🌊🏠</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    st.success("🟢 Đội cứu hộ đang di chuyển — xem bản đồ để theo dõi tuyến đường.")
             except Exception:
                 pass
 
@@ -2503,3 +2789,183 @@ with tab2:
         2) Gửi **SOS** kèm tình trạng → hệ thống tính **mức ưu tiên**.
         3) Xem **điểm trú ẩn gần nhất** và **tuyến đường**.
         """)
+
+
+# # =========================================================
+# # TAB 3 — ĐIỀU PHỐI SOS
+# # =========================================================
+with tab3:
+    from db_utils import list_requests, create_task, update_request_status, init_db
+    init_db()
+
+    st_autorefresh(interval=30_000, key="refresh_timer_dispatch")
+
+    st.markdown("## 📋 Điều Phối Cứu Hộ")
+    st.caption("Dữ liệu SOS từ app Flutter được đồng bộ tự động. Tự làm mới mỗi 30 giây.")
+
+    # ── Load requests from SQLite ──
+    raw_rows = list_requests(limit=100)
+    COL_REQ = ["id", "created_at", "caller_name", "phone", "gid3", "lat", "lon",
+               "people", "urgency", "note", "status", "linked_task_id"]
+
+    if raw_rows:
+        req_df = pd.DataFrame(raw_rows, columns=COL_REQ)
+    else:
+        req_df = pd.DataFrame(columns=COL_REQ)
+
+    # Filter only active
+    active_df = req_df[req_df["status"].isin(["MỚI", "ĐANG XỬ LÝ"])].copy() if len(req_df) else req_df.copy()
+
+    # ── Summary metrics ──
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric("📥 Tổng yêu cầu", len(req_df))
+    with m2:
+        st.metric("🆕 Chờ xử lý", int((req_df["status"] == "MỚI").sum()) if len(req_df) else 0)
+    with m3:
+        st.metric("🔄 Đang xử lý", int((req_df["status"] == "ĐANG XỬ LÝ").sum()) if len(req_df) else 0)
+    with m4:
+        st.metric("✅ Đã xong", int((req_df["status"] == "ĐÃ XONG").sum()) if len(req_df) else 0)
+
+    st.markdown("---")
+
+    # ── Layout: table left, map right ──
+    col_left, col_right = st.columns([1.4, 1])
+
+    with col_left:
+        st.markdown("### 📃 Danh sách yêu cầu cứu hộ")
+        if len(req_df) == 0:
+            st.info("Chưa có yêu cầu SOS nào. Hãy gửi SOS từ app Flutter.")
+        else:
+            display_df = req_df.copy()
+            # Rename for display
+            display_df = display_df.rename(columns={
+                "id": "ID", "created_at": "Thời gian", "caller_name": "Họ tên",
+                "phone": "SĐT", "lat": "Vĩ độ", "lon": "Kinh độ",
+                "people": "Số người", "urgency": "Ưu tiên", "note": "Ghi chú",
+                "status": "Trạng thái",
+            })
+            show_cols = [c for c in ["ID","Thời gian","Họ tên","SĐT","Vĩ độ","Kinh độ","Số người","Ghi chú","Trạng thái"] if c in display_df.columns]
+            st.dataframe(display_df[show_cols], use_container_width=True, height=320)
+
+        # ── DISPATCH FORM ──
+        st.markdown("### 🚑 Điều phái đội cứu hộ")
+        if len(active_df) == 0:
+            st.info("Không có yêu cầu nào đang chờ xử lý.")
+        else:
+            req_labels = [
+                f"[{r['id']}] {r['caller_name'] or '(Không rõ tên)'} | SĐT: {r['phone'] or '?'} | "
+                f"Người: {r['people']} | {r['note'][:40] if r['note'] else ''}"
+                for _, r in active_df.iterrows()
+            ]
+            sel_idx = st.selectbox("Chọn yêu cầu cần điều phái", range(len(req_labels)),
+                                   format_func=lambda i: req_labels[i], key="dispatch_select")
+            sel_req = active_df.iloc[sel_idx]
+
+            with st.form("dispatch_form"):
+                st.markdown(f"**Yêu cầu #{int(sel_req['id'])}** — {sel_req['caller_name'] or '?'} ({sel_req['phone'] or '?'})")
+                st.markdown(f"📍 Tọa độ: `{sel_req['lat']:.5f}, {sel_req['lon']:.5f}` | 👥 {sel_req['people']} người | 📝 {sel_req['note'] or '—'}")
+
+                fc1, fc2 = st.columns(2)
+                with fc1:
+                    team_options = ["Đội Cứu Hộ Alpha", "Đội Cứu Hộ Beta", "Đội Cứu Hộ Gamma", "Đội Cứu Hộ Delta"]
+                    assigned_team = st.selectbox("🏅 Đội cứu hộ", team_options, key="dispatch_team")
+                    task_type = st.selectbox("📌 Loại nhiệm vụ", ["CỨU HỘ", "SƠ TÁN", "Y TẾ", "CẤP PHÁT", "KHẢO SÁT"], key="dispatch_type")
+                    eta_min = st.number_input("⏱️ ETA (phút)", min_value=0, max_value=480, value=30, key="dispatch_eta")
+                with fc2:
+                    boats = st.number_input("🚤 Số xuồng", min_value=0, max_value=20, value=1, key="dispatch_boats")
+                    trucks = st.number_input("🚒 Số xe tải/cứu hộ", min_value=0, max_value=20, value=1, key="dispatch_trucks")
+                    task_note = st.text_area("📝 Ghi chú nhiệm vụ", placeholder="Ví dụ: Ưu tiên người già, cần mang phao...", key="dispatch_note", height=80)
+
+                submitted = st.form_submit_button("🚀 XÁC NHẬN ĐIỀU PHÁI", use_container_width=True, type="primary")
+                if submitted:
+                    try:
+                        tid = create_task({
+                            "gid3": sel_req.get("gid3", ""),
+                            "commune_name": "",
+                            "task_type": task_type,
+                            "priority_score": float(sel_req.get("urgency") or 3) * 20,
+                            "assigned_team": assigned_team,
+                            "boats": int(boats),
+                            "trucks": int(trucks),
+                            "status": "ĐÃ GIAO",
+                            "eta_min": int(eta_min),
+                            "note": task_note,
+                            "source_request_id": int(sel_req["id"]),
+                        })
+                        update_request_status(int(sel_req["id"]), "ĐÃ TẠO NHIỆM VỤ", linked_task_id=tid)
+                        st.success(f"✅ Đã điều phái **{assigned_team}** → Nhiệm vụ #{tid} | ETA: ~{eta_min} phút")
+                        st.balloons()
+                    except Exception as ex:
+                        st.error(f"Lỗi tạo nhiệm vụ: {ex}")
+
+    with col_right:
+        st.markdown("### 🗺️ Bản đồ yêu cầu SOS")
+        shelters_tab3 = load_shelters()
+        # Center map on first request or default
+        if len(req_df) > 0 and not req_df["lat"].isna().all():
+            map_center_lat = float(req_df["lat"].dropna().iloc[0])
+            map_center_lon = float(req_df["lon"].dropna().iloc[0])
+        else:
+            map_center_lat, map_center_lon = 18.79, 105.59
+
+        m_dispatch = folium.Map(location=[map_center_lat, map_center_lon], zoom_start=12, tiles="CartoDB positron")
+
+        # Plot all SOS requests
+        for _, r in req_df.iterrows():
+            if pd.notna(r["lat"]) and pd.notna(r["lon"]):
+                color = "red" if r["status"] == "MỚI" else ("orange" if r["status"] == "ĐANG XỬ LÝ" else "green")
+                folium.CircleMarker(
+                    location=[float(r["lat"]), float(r["lon"])],
+                    radius=10,
+                    color=color,
+                    fill=True,
+                    fill_opacity=0.85,
+                    popup=(
+                        f"<b>#{r['id']}</b> {r['caller_name'] or '?'}<br>"
+                        f"SĐT: {r['phone'] or '?'}<br>"
+                        f"👥 {r['people']} người<br>"
+                        f"📝 {r['note'] or ''}<br>"
+                        f"🔖 {r['status']}"
+                    ),
+                    tooltip=f"SOS #{r['id']} — {r['status']}"
+                ).add_to(m_dispatch)
+
+        # Plot shelters
+        for _, sh in shelters_tab3.iterrows():
+            folium.Marker(
+                location=[float(sh["lat"]), float(sh["lon"])],
+                popup=f"🏠 {sh['name']} | Sức chứa: {sh.get('capacity','')}",
+                icon=folium.Icon(color="green", icon="home"),
+                tooltip=str(sh["name"])
+            ).add_to(m_dispatch)
+
+        # Legend
+        legend_html = """
+        <div style="position:fixed;bottom:24px;left:24px;z-index:9999;
+                    background:rgba(255,255,255,0.93);padding:10px 14px;
+                    border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.2);font-size:13px;">
+            <b>🗺️ Chú thích</b><br>
+            <span style="color:red;">●</span> SOS Mới&nbsp;&nbsp;
+            <span style="color:orange;">●</span> Đang xử lý&nbsp;&nbsp;
+            <span style="color:green;">●</span> Đã xong<br>
+            <span style="color:green;">🏠</span> Trạm cứu hộ
+        </div>
+        """
+        m_dispatch.get_root().html.add_child(folium.Element(legend_html))
+        st_folium(m_dispatch, height=500, use_container_width=True, key="dispatch_map")
+
+        # Highlight selected victim on map if form active
+        if len(active_df) > 0 and "dispatch_select" in st.session_state:
+            s_idx = st.session_state.get("dispatch_select", 0)
+            if s_idx < len(active_df):
+                sel = active_df.iloc[s_idx]
+                if pd.notna(sel["lat"]) and pd.notna(sel["lon"]):
+                    # Find nearest shelter
+                    nearest = find_nearest_shelter(float(sel["lat"]), float(sel["lon"]), shelters_tab3)
+                    if nearest is not None:
+                        st.info(
+                            f"📍 **Trạm gần nhất**: {nearest['name']} "
+                            f"({nearest['dist_km']:.2f} km)"
+                        )
+

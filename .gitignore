@@ -1,5 +1,48 @@
+# =====================
+# Large CSV / Data files
+# =====================
 *.csv
-*.csv.gz
 Gop_app/cache/
 Gop_app/data/
-Gop_app/*.csv
+
+# =====================
+# Python
+# =====================
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.joblib
+*.pkl
+*.parquet
+*.h5
+db/app.db
+
+# =====================
+# Node.js
+# =====================
+node_modules/
+npm-debug.log*
+
+# =====================
+# Environment / Secrets
+# =====================
+.env
+.env.local
+.env.*.local
+
+# =====================
+# Flutter / Dart
+# =====================
+Floodsos/frontend-flutter/build/
+Floodsos/frontend-flutter/.dart_tool/
+Floodsos/frontend-flutter/.packages
+
+# =====================
+# IDE / OS
+# =====================
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store

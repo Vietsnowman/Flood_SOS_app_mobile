@@ -1,0 +1,8 @@
+{
+  "teams": 10,
+  "boats": 15,
+  "trucks": 8,
+  "food_packs": 5000,
+  "water_liters": 10000,
+  "medical_kits": 600
+}

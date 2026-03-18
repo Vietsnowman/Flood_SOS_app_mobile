@@ -143,64 +143,118 @@ Gop_app/
 
 ## 🚀 Cài Đặt & Khởi Chạy
 
-### Bước 1: Clone & Cài đặt
+> **Thứ tự theo `run.txt`** — Mở lần lượt từng terminal, chạy đúng thứ tự bước 1 → 6.
+
+### Bước 0: Clone & Cài dependencies (lần đầu)
 
 ```bash
 git clone https://github.com/Vietsnowman/Gop_app.git
+```
+
+**Python dependencies:**
+```bash
+pip install streamlit pandas numpy folium streamlit-folium pyproj scikit-learn joblib ^
+  alphashape osmnx networkx scikit-image streamlit-autorefresh streamlit-geolocation ^
+  reportlab pyarrow
+```
+
+**Node.js dependencies:**
+```bash
+cd Gop_app/Floodsos/Sos-backend
+npm install && npm install sqlite3 --save
+```
+
+---
+
+### 🖥️ Bước 1 — Merge dữ liệu (lần đầu hoặc có data mới)
+
+```bash
+# Terminal 1 — root project (Gop_app/)
 cd Gop_app
+python 0_merge_data.py
 ```
+> Tạo ra `cache/merged.csv` từ các file CSV gốc.
 
-### Bước 2: Chạy Python Streamlit (Terminal 1)
+---
+
+### ⏱️ Bước 2 — Cache dự báo 7 ngày (nên chạy sớm, lặp mỗi 3h)
 
 ```bash
+# Terminal 2 — Gop_app/Gop_app/
 cd Gop_app/Gop_app
+python scheduler_cache.py
+```
+> Tạo file `cache/forecasts/<date>_commune_forecasts_7d.parquet`. Nếu chưa có cache, app vẫn chạy nhưng chậm hơn.
 
-# Cài dependencies (lần đầu)
-pip install streamlit pandas numpy folium streamlit-folium pyproj scikit-learn \
-  joblib alphashape osmnx networkx scikit-image streamlit-autorefresh streamlit-geolocation
+---
 
-# Chạy dashboard
+### 🌊 Bước 3 — Realtime map (bản đồ điểm ngập & SOS)
+
+```bash
+# Terminal 3 — Gop_app/Gop_app/
+cd Gop_app/Gop_app
+python realtime.py
+```
+> Tạo `realtime_outputs/flood_point_probability_rt.csv` cho bản đồ realtime.
+
+---
+
+### 🖥️ Bước 4 — Chạy Streamlit Dashboard ⭐
+
+```bash
+# Terminal 1 (tiếp theo Bước 1) — Gop_app/Gop_app/
+cd Gop_app/Gop_app
 python -m streamlit run main_unified.py
-
-> **⚠️ LƯU Ý QUAN TRỌNG:** Đảm bảo tải các file dữ liệu (DanSo_Xa.csv, shelters.csv, ...) vào `data` và chạy gộp dữ liệu bằng `python 0_merge_data.py`. File kết quả sẽ nằm trong `cache/merged.csv`.
 ```
+> → Dashboard mở tại **http://localhost:8501**  
+> Gồm 2 module: **Realtime SOS Map** (`app_SOS_shelters7.py`) + **Forecast + Điều phối** (`app6.py`)
 
-### Bước 3: Chạy Node.js Backend (Terminal 2)
+---
+
+### 🔧 Bước 5 — Chạy Node.js Backend (SOS API)
 
 ```bash
-cd Floodsos/Sos-backend
-
-# Cài dependencies cơ bản và database connector (lần đầu)
-npm install
-npm install sqlite3 --save
-
-# Khởi động MongoDB trước (phải có MongoDB đang chạy)
-# Windows: net start MongoDB
-# macOS/Linux: mongod --dbpath /data/db
-
+# Terminal 4 — Gop_app/Floodsos/Sos-backend/
+cd Gop_app/Floodsos/Sos-backend
 npm start
-# → API chạy tại http://localhost:3002
 ```
+> → API chạy tại **http://localhost:3002**  
+> ⚠️ Cần MongoDB đang chạy: `net start MongoDB` (Windows)
 
-### Bước 4: Chạy Flutter App (Terminal 3)
+---
+
+### 📱 Bước 6 — Chạy Flutter App (Mobile/Desktop)
 
 ```bash
-cd Floodsos/frontend-flutter
+# Terminal 5 — Gop_app/Floodsos/frontend-flutter/
+cd Gop_app/Floodsos/frontend-flutter
+flutter pub get          # lần đầu
 
-# Cài dependencies (lần đầu)
-flutter pub get
+# Chạy Desktop (Windows)
+flutter build windows
 
-# Chạy trên Windows Desktop
-flutter run -d windows
-
-# Hoặc chạy trên Chrome
+# Hoặc chạy nhanh trên Chrome
 flutter run -d chrome
 
-# Hoặc build APK
+# Hoặc build APK Android
 flutter build apk --release
 ```
 
 ---
+
+### ⚡ Tóm tắt nhanh (tất cả đã cài sẵn)
+
+| Terminal | Lệnh | Mục đích |
+|----------|------|----------|
+| **T1** | `python 0_merge_data.py` → `python -m streamlit run main_unified.py` | Dashboard chính |
+| **T2** | `python scheduler_cache.py` | Cache dự báo 7 ngày |
+| **T3** | `python realtime.py` | Dữ liệu realtime |
+| **T4** | `npm start` (Sos-backend/) | API SOS Node.js |
+| **T5** | `flutter build windows` (frontend-flutter/) | App mobile/desktop |
+
+---
+
+
 
 ## ⚙️ Ports & Services
 
