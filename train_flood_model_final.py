@@ -329,10 +329,14 @@ R = road_exposed_pct
 impact_score = 100 * (0.35 * P + 0.25 * R + 0.15 * A)
 
 def priority_level(score):
-    if score < 25: return "Low"
-    elif score < 50: return "Medium"
-    elif score < 75: return "High"
-    else: return "Emergency"
+    if score < 25:
+        return "Low"
+    elif score < 50:
+        return "Medium"
+    elif score < 75:
+        return "High"
+    else:
+        return "Emergency"
 
 priority = priority_level(impact_score)
 

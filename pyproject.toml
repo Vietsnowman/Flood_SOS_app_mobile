@@ -1,0 +1,13 @@
+[project]
+name = "flood-sos-app-mobile"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.11.9"
+dependencies = [
+    "joblib>=1.5.3",
+    "lightgbm>=4.6.0",
+    "pandas>=3.0.1",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
+]

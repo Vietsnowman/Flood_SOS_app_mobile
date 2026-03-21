@@ -75,9 +75,12 @@ def predict_7days(gid, lat, lon, static_row, history_df, population=None):
     out["priority_score"] = 100*(0.5*out["p_flood"] + 0.3*ap_norm + 0.2*ratio_norm)
 
     def level(s):
-        if s>=80: return "KHẨN CẤP"
-        if s>=50: return "CAO"
-        if s>=20: return "TRUNG BÌNH"
+        if s >= 80:
+            return "KHẨN CẤP"
+        if s >= 50:
+            return "CAO"
+        if s >= 20:
+            return "TRUNG BÌNH"
         return "THẤP"
     out["priority_level"] = out["priority_score"].apply(level)
 

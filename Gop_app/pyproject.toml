@@ -1,0 +1,49 @@
+[project]
+name = "flood-sos-gop-app"
+version = "0.1.0"
+description = "Realtime Flood Forecast + SOS Priority Dashboard"
+requires-python = "==3.11.9"
+
+dependencies = [
+    # ── Web / Dashboard ───────────────────────────────────────────────────────
+    "streamlit>=1.35.0",
+    "streamlit-folium>=0.22.0",
+    "streamlit-autorefresh>=1.0.1",
+    "streamlit-geolocation>=0.0.9",
+    # ── Mapping ───────────────────────────────────────────────────────────────
+    "folium>=0.17.0",
+    "alphashape>=1.3.1",
+    # ── Geospatial / Routing ──────────────────────────────────────────────────
+    "pyproj>=3.6.1",
+    "osmnx>=1.9.4",
+    "networkx>=3.3",
+    "shapely>=2.0.6",
+    # ── Data science core ─────────────────────────────────────────────────────
+    "numpy>=1.26.4",
+    "pandas>=2.2.2",
+    "polars>=0.20.0",   # fast lazy CSV I/O for large file pipelines
+    "scipy>=1.13.1",
+    "scikit-learn>=1.5.1",
+    "scikit-image>=0.23.2",
+    "joblib>=1.4.2",
+    # ── ML models ─────────────────────────────────────────────────────────────
+    "lightgbm>=4.4.0",
+    "torch>=2.3.1",
+    # ── Database ──────────────────────────────────────────────────────────────
+    "pymongo>=4.8.0",
+    # ── HTTP / API ────────────────────────────────────────────────────────────
+    "requests>=2.32.3",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    # ── PDF report ────────────────────────────────────────────────────────────
+    "fpdf2>=2.7.9",
+]
+
+
+[tool.uv]
+# Gop_app là tập hợp scripts, không phải Python package → không build wheel.
+package = false
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends.legacy:build"

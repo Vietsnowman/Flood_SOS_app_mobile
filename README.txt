@@ -1,11 +1,16 @@
 FLOOD_UNIFIED/
-├─ main_unified.py                # ✅ App gộp (entrypoint duy nhất)
+├─ main_unified.py                # App gộp (entrypoint duy nhất)
 │
-├─ app_SOS_shelters7.py           # ✅ App realtime gốc (giữ nguyên)
-├─ app6.py                        # ✅ App forecast/DB gốc (giữ nguyên)
+├─ app_SOS_shelters7.py           # App realtime gốc (giữ nguyên)
+├─ app6.py                        # App forecast/DB gốc (giữ nguyên)
 │
 ├─ realtime.py                    # (nếu muốn chạy tạo outputs realtime)
+├─ priority_api.py                # API (FastAPI) chấm điểm khẩn cấp SOS
+├─ predict_sos_priority.py        # Logic inference độ khẩn cấp SOS (MLP)
+├─ route_calculator_osm.py        # Thuật toán tìm đường OSMnx có fallback
 ├─ train_flood_model_final.py     # (nếu muốn train lại point model)
+├─ train_sos_priority.py          # (tự động train model SOS từ dữ liệu thực tế Mongo)
+├─ export_sos_dataset.py          # (kéo dữ liệu từ MongoDB để train SOS)
 │
 ├─ 0_merge_data.py                # (merge dữ liệu xã)
 ├─ 1_train_models_no_leak.py      # (train 3 model xã)
@@ -44,11 +49,13 @@ main_unified.py → chạy app_SOS_shelters7.py hoặc app6.py
 app6.py → dùng db_utils.py, đọc cache parquet do scheduler_cache.py tạo, có thể dùng report_utils.py
 scheduler_cache.py → gọi predict.py
 predict.py → gọi open_meteo.py + feature_engineering.py + load model do 1_train_models_no_leak.py train
-app_SOS_shelters7.py → đọc output do realtime.py sinh + routing OSM (osmnx)
+app_SOS_shelters7.py → đọc output do realtime.py sinh + định tuyến OSM (osmnx)
 realtime.py → dùng model do train_flood_model_final.py train + gọi Open-Meteo hourly
+priority_api.py → dùng model (predict_sos_priority.py) mở cổng 8765 trả về điểm khẩn cấp SOS cho Node.js
+route_calculator_osm.py → tính toán định tuyến đường thực tế dựa theo OSMnx cho API analyze-route của Node.js
 
 
-1) File “chạy app” (entrypoint)
+1. File “chạy app” (entrypoint)
 main_unified.py
 Vai trò: “App gộp” (Streamlit) để chọn chạy 1 trong 2 app gốc bằng sidebar.
 Cơ chế: dùng runpy.run_path() để chạy app_SOS_shelters7.py hoặc app6.py.
@@ -79,7 +86,7 @@ Tạo & cập nhật task điều phối
 Quản lý điểm trú ẩn (còn chỗ, nhu cầu, log chuyển người)
 Xuất báo cáo (CSV/PDF) (thường gọi report_utils.py)
 
-2) Pipeline dự báo theo xã (forecast 7 ngày)
+2. Pipeline dự báo theo xã (forecast 7 ngày)
 open_meteo.py
 Vai trò: gọi API Open-Meteo để lấy weather forecast.
 Output: trả về DataFrame có:
@@ -118,7 +125,7 @@ Input: cache/merged.csv + data/DanSo_Xa.csv
 Output: cache/forecasts/{YYYY-MM-DD}_commune_forecasts.parquet
 Mục đích: app6 mở ra “nhanh” (không phải dự báo on-the-fly cho từng xã).
 
-3) Chuẩn bị dữ liệu & train model theo xã (no-leak)
+3. Chuẩn bị dữ liệu & train model theo xã (no-leak)
 0_merge_data.py
 Vai trò: merge dữ liệu nhiều năm (2023/2024/2025) → 1 file dùng chung.
 Input: data/NgheAn_weather32full_flood_merge_by_commune_time_202*_NO_NaN.csv
@@ -133,7 +140,7 @@ models/model_ratio_no_leak.pkl (regressor dự đoán log(ratio))
 Chú ý “no leak”: có danh sách LEAK_COLS để loại các cột có nguy cơ “lộ nhãn/đích”.
 Cách CV: GroupKFold theo GID_3 để tránh rò rỉ theo địa lý.
 
-4) Realtime point-based + SOS (mô hình theo điểm)
+4. Realtime point-based + SOS (mô hình theo điểm)
 train_flood_model_final.py
 Vai trò: script train mô hình theo điểm (dataset 2020) để phục vụ realtime.
 Output quan trọng (thường):
@@ -156,7 +163,7 @@ impact_click_zone_rt.csv, zone_points_rt.csv (vùng tác động khi click)
 meta_rt.json (metadata runtime)
 Ý nghĩa: app realtime chỉ “vẽ và điều phối”; còn realtime.py là “máy tính dữ liệu realtime”.
 
-5) Database + báo cáo (support)
+5. Database + báo cáo (support)
 db_utils.py
 Vai trò: toàn bộ hàm làm việc với SQLite DB (mặc định trỏ tới db/app.db).
 Những nhóm bảng/chức năng hay có:
@@ -172,3 +179,16 @@ Vai trò: xuất báo cáo:
 export_csv(df, out_path)
 export_pdf(top_df, summary_dict, out_path) (PDF bảng top + summary)
 Được gọi bởi: thường app6.py khi bấm “Xuất PDF/CSV”.
+
+6. AI Core Microservices (Priority & Routing)
+priority_api.py
+Vai trò: API Server (FastAPI) port 8765, làm cổng giao tiếp để Node.js Backend gọi tới khi có tín hiệu SOS. Cung cấp 2 kết quả: `urgency_prob` (0-1) và `is_urgent` (boolean).
+
+predict_sos_priority.py
+Vai trò: Core Logic. Load mô hình MLP PyTorch (8 inputs: lat, lon, flood_prob, people, status, và 3 temporal features). Xử lý input và trả về điểm khẩn cấp.
+
+route_calculator_osm.py
+Vai trò: Chịu trách nhiệm cho logic chỉ đường thông minh. Sử dụng `osmnx` tải mạng lưới đường bộ, tính đường đi an toàn, và tự động fallback về khoảng cách tuyến tính nếu offline hoặc khoảng cách quá ngắn. Cung cấp hàm cho `priority_api` (nếu cần) hoặc Node.js.
+
+train_sos_priority.py & export_sos_dataset.py
+Vai trò: Vòng lặp cải tiến AI. `export...` sẽ chui vào MongoDB kéo các SOS ID đã được cứu (delta_time <= 15p = urgent). `train...` sẽ fit lại MLP model dựa trên data đó. Đảm bảo Core AI tiến hóa theo thời gian thực!

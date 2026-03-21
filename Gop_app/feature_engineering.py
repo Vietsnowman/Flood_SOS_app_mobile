@@ -1,4 +1,3 @@
-import pandas as pd
 
 def build_lag_rolling_features(df, group_col="GID_3", date_col="date_local"):
     df = df.sort_values([group_col, date_col]).copy()

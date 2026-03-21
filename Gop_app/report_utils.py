@@ -1,4 +1,3 @@
-import pandas as pd
 from fpdf import FPDF
 import os
 from datetime import datetime
