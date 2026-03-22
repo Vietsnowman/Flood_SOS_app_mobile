@@ -32,7 +32,7 @@
 | Thành phần | Công nghệ | Vai trò |
 |---|---|---|
 | **🐍 AI Core** | Python 3.11.9 + FastAPI + Streamlit | Dự báo ngập, định tuyến cứu hộ, điều phối |
-| **📱 Mobile App** | Flutter | Gửi SOS, hiển thị chỉ dẫn, bản đồ |
+| **📱 Mobile App** | Flutter (Calm Crisis UI) | Gửi SOS, hiển thị chỉ dẫn weather/routing |
 | **🔧 SOS Backend** | Node.js + MongoDB | Nhận SOS, lưu trữ, proxy sang AI |
 
 ---
@@ -99,12 +99,14 @@ Flood_SOS_app_mobile/
 │   └── pyproject.toml           # uv dependencies (Python 3.11.9)
 │
 ├── FloodSOS-Complete/
-│   ├── frontend-flutter/        # 📱 Flutter Mobile App
+│   ├── frontend-flutter/        # 📱 Flutter Mobile App (Calm Crisis UI)
 │   │   └── lib/
+│   │       ├── config/theme_config.dart           # Ocean/Teal palette
+│   │       ├── widgets/glass_widgets.dart         # Glassmorphism widgets
 │   │       ├── screens/
-│   │       │   ├── voice_sos_screen.dart         # Gửi SOS
-│   │       │   ├── sos_routing_result_screen.dart # Hiển thị chỉ dẫn routing AI
-│   │       │   └── home_screen.dart
+│   │       │   ├── home_screen.dart               # Pulse SOS Button, Bottom Nav
+│   │       │   ├── sos_routing_result_screen.dart # Chỉ dẫn routing AI
+│   │       │   └── weather_screen.dart            # Cảnh báo rủi ro ngập
 │   │       ├── services/api_service.dart          # HTTP client
 │   │       └── providers/                         # State management
 │   └── Sos-backend/             # 🔧 Node.js Backend
@@ -142,6 +144,15 @@ Flood_SOS_app_mobile/
 | 🟠 `moderate` (40–65%) | Xe tải cao hoặc thuyền nhỏ |
 | 🟡 `low` (20–40%) | Xe bán tải, đi chậm cẩn thận |
 | 🟢 `none` (<20%) | Xe ô tô thông thường |
+
+---
+
+### 5. 🌊 Giao Diện Calm Crisis (Mobile)
+Mobile app được thiết kế theo phong cách **Calm Crisis**:
+- **Glassmorphism Design:** Các thẻ thông tin, form đăng nhập, box chat đều tựa như kính mờ trên nền đại dương sâu.
+- **Ocean & Teal Palette:** Sử dụng gradient biển sâu (`#0D1B2A` → `#1F3A4B`) và accent màu lục lam (`#00BCD4`) tạo cảm giác bình tĩnh nhưng dứt khoát.
+- **Interactive SOS Button:** Nút bấm SOS dạng xung (pulse animation) mô phỏng sóng lan tỏa, giúp người dùng dễ dàng thu hút sự chú ý.
+- **Bottom Navigation Bar:** Hỗ trợ điều hướng đa năng (SOS / Bản đồ Cứu hộ / Hotline AI / Cảnh báo Thời tiết).
 
 ---
 
