@@ -234,36 +234,63 @@ uv run pytest tests/ -v
 
 ## 🎮 Khởi Chạy Ứng Dụng
 
-Hệ thống được thiết kế để chạy tự động bằng Docker hoặc chạy độc lập từng service.
+Hệ thống được thiết kế để chạy tự động bằng Docker hoặc phân tách chạy độc lập từng service.
 
-### Cách 1: Chạy Siêu Tốc Bằng Docker (Khuyên Dùng) 🐳
-Đảm bảo bạn đã cài Docker Desktop & máy ảo Python đã train ra file models/ .joblib.
-Từ thư mục root của dự án:
+> 💡 **Lưu ý quan trọng trước khi chạy:**
+> AI của dự án sử dụng các model `.joblib` tĩnh. Những model này **không được push lên Github** vì quá nặng. Vì vậy, nếu máy bạn chưa có file model trong thư mục `Gop_app/models` và `Gop_app/calib_model.joblib`, bạn phải chạy 2 lệnh sau trước (chỉ cần chạy 1 lần duy nhất):
+> ```bash
+> cd Gop_app
+> uv run python 1_train_models_no_leak.py
+> uv run python train_flood_model_final.py
+> ```
+
+### 🐳 CÁCH 1: Chạy Siêu Tốc Bằng Docker (Khuyên Dùng)
+Cách này giúp khởi động Database, Backend Node.js, 2 API Python và Streamlit bằng 1 câu lệnh duy nhất.
+
+**Bước 1:** Đảm bảo **Docker Desktop** đang mở (Engine Running).
+**Bước 2:** Mở Terminal tại thư mục gốc của dự án và khởi chạy toàn bộ dịch vụ:
 ```bash
 docker compose up -d --build
 ```
-*Lệnh này sẽ tự động khởi tạo MongoDB, Node.js Backend, 2 Python FastAPI và 2 màn hình Streamlit.*
-
-### Cách 2: Chạy Thủ Công Từng Dev Server
-
-**Khởi động AI Core (Terminal 1 & 2):**
+**Bước 3: Chạy App Mobile Flutter**
+Mở một Terminal khác:
 ```bash
-cd Gop_app
-uv run uvicorn src.api.priority:app --port 8765 --reload
-uv run uvicorn src.api.routing:app --port 8766 --reload
+cd FloodSOS-Complete/frontend-flutter
+flutter run -d windows
 ```
 
-**Khởi động Node.js Backend Server (Terminal 3):**
+### 💻 CÁCH 2: Chạy Thủ Công (Dành Cho Phát Triển / Sửa Code)
+Nếu bạn muốn hệ thống tự cập nhật khi sửa code (`live-reload`), hãy chạy thủ công qua 5 cửa sổ lệnh (Tabs):
+
+**Tab 1: Khởi động Backend Node.js**
 ```bash
 cd FloodSOS-Complete/Sos-backend
 npm run dev
 ```
 
-**Kết quả mong đợi:**
+**Tab 2: Khởi động AI Priority API (Chấm điểm khẩn cấp SOS)**
+```bash
+cd Gop_app
+uv run uvicorn src.api.priority:app --port 8765 --reload
 ```
-🚀 SERVER ĐANG CHẠY TẠI: http://0.0.0.0:3002       
-📡 API Gửi SOS: POST http://localhost:3002/api/sos/voice
-✅ MongoDB Connected thành công!
+
+**Tab 3: Khởi động AI Routing API (Chỉ đường tránh ngập)**
+```bash
+cd Gop_app
+uv run uvicorn src.api.routing:app --port 8766 --reload
+```
+
+**Tab 4: Mở giao diện Dashboard Streamlit**
+Cũng ở trong `Gop_app`, bạn chạy 1 trong 2 giao diện tùy nhu cầu:
+```bash
+uv run streamlit run app6.py
+# (Hoặc bản realtime: uv run streamlit run app_SOS_shelters7.py)
+```
+
+**Tab 5: Chạy App Mobile Flutter**
+```bash
+cd FloodSOS-Complete/frontend-flutter
+flutter run
 ```
 
 ---
