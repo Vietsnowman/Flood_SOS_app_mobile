@@ -98,6 +98,15 @@ Gop_app
 │
 ├── db/                            # SQLite databases
 │
+├── src/                           # 🆕 Core package structure cho import sạch
+│   ├── api/                       # API modules re-exports (priority.py, routing.py)
+│   ├── dashboard/                 # Streamlit dashboards re-exports
+│   └── data_processing/           # Data pipelines re-exports
+│
+├── tests/                         # 🆕 Pytest test suite
+│   ├── test_priority_api.py       # API unit tests (FastAPI TestClient)
+│   └── test_routing_api.py
+│
 ├── training scripts
 │   ├── 0_merge_data.py
 │   ├── 1_train_models_no_leak.py
@@ -246,6 +255,16 @@ Run example:
 python app6.py
 
 This launches the visual flood monitoring dashboard.
+
+🧪 Unit Testing (MỚI)
+Hệ thống AI đã được tích hợp bộ test tự động sử dụng `pytest` kết hợp với `httpx` (FastAPI TestClient).
+Để chạy toàn bộ test suit, từ folder Gop_app chạy lệnh:
+
+uv run pytest tests/ -v
+
+Test files bao gồm các scenarios biên đổi:
+- `tests/test_priority_api.py`: Check logic AI chấm điểm (hỗ trợ graceful fallback).
+- `tests/test_routing_api.py`: Check định dạng routing và logic ngập.
 
 🗂 Recommended .gitignore
 cache/

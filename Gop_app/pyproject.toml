@@ -39,6 +39,17 @@ dependencies = [
     "fpdf2>=2.7.9",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",   # required by FastAPI TestClient
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 
 [tool.uv]
 # Gop_app là tập hợp scripts, không phải Python package → không build wheel.

@@ -1,0 +1,66 @@
+[Slide 1: Title & The Problem] (0:00 - 1:00)
+[Confident posture, making eye contact with the audience]
+
+"Hello everyone. Today, I am incredibly proud to introduce you to FloodSOS—an intelligent, comprehensive flood rescue system specifically designed to protect and support citizens during extreme natural disasters, with our initial focus on Nghe An province.
+
+[Lower tone, showing empathy]
+As we all know, severe flooding is a recurring nightmare that causes devastating loss of property and, tragically, loss of life. During these critical moments, traditional rescue operations often face two massive hurdles: information overload and unpredictable environments. Rescue teams struggle to prioritize who needs help first, and roads that were clear an hour ago might now be submerged under two meters of water.
+
+[Slightly faster pace, hopeful tone]
+This is exactly the problem we set out to solve with FloodSOS. This is a system that bridges the gap between those in danger and those coming to save them, all powered by cutting-edge Artificial Intelligence."
+
+[Slide 2: System Architecture Overview] (1:00 - 1:45)
+[Transition slide, use hand gestures to list the three points]
+
+"To tackle this immense challenge, we built FloodSOS upon three distinct, yet seamlessly integrated technical pillars:
+
+First, the AI Core—our 'brain,' built with Python, FastAPI, and Streamlit.
+
+Second, the Mobile Application—our 'frontline interface,' built with Flutter.
+
+And third, the SOS Backend—our 'nervous system,' powered by Node.js and MongoDB.
+
+When a citizen is trapped by rising waters, our system doesn't just send a generic alert. It triggers a complex, real-time pipeline that analyzes the weather, the terrain, the immediate danger level, and the safest physical route to rescue. Let me break down exactly how our AI magic happens."
+
+[Slide 3: The AI Core - Forecasting & Urgency] (1:45 - 3:00)
+[Point to the diagram on screen, if available]
+
+"Our AI Core operates on multiple levels. Before a disaster even strikes, we run a 7-day commune-level flood forecast. We use LightGBM models trained on a massive dataset of Open-Meteo weather data and local topographical features. This gives authorities a crucial head start.
+
+During the actual flood, we switch to real-time, pixel-level forecasting. By processing rolling weather data and static terrain features, our models dynamically calculate the precise probability of flooding at specific grid points.
+
+[Emphasize, slow down for the key point]
+Crucially, when an SOS is triggered, our system doesn't just put it in a queue. It instantly hits our Priority API. Using a Multi-Layer Perceptron neural network, the system calculates an 'Urgency Score.' Essentially, it determines the mathematical probability that this specific user needs life-saving intervention within the next 15 minutes."
+
+[Slide 4: The AI Core - Smart Routing] (3:00 - 4:15)
+[Enthusiastic tone, showing pride in the breakthrough feature]
+
+"Now, here is the most innovative part of FloodSOS: Our Flood-Aware SOS Routing API. When a victim presses the SOS button, the AI looks at the flood probability around them.
+
+If the flood probability is under 50%, the system initiates 'Self-Evacuation.' It instantly calculates the safest route to the nearest designated shelter and guides the user via their mobile app.
+
+However, if the flood probability is 50% or higher, the system initiates 'Rescue Dispatch.' It calculates a route from the nearest rescue base directly to the victim.
+
+[Open your hands, emphasizing the next point]
+But it goes further. The algorithm breaks the route down into segments and assigns a transportation mode based on water levels. For example, it might tell responders: 'Take a standard pickup truck for the first 5 kilometers where flooding is low, but you MUST switch to a motorboat for the final 2 kilometers where flooding is heavy.' This segmented planning saves precious minutes and prevents rescue vehicles from getting stranded."
+
+[Slide 5: The Mobile Experience - Calm Crisis UI] (4:15 - 5:15)
+[Softer tone, focusing on design and psychology]
+
+"All of this complex backend logic is delivered to the user through an interface designed for the worst moments of their lives. We call our mobile app design language 'Calm Crisis.'
+
+Using Flutter, we created a UI that uses deep ocean and cyan color palettes with soft glassmorphism effects. Why? Because psychological studies show these colors help significantly reduce panic and anxiety.
+
+In the center of the app is our Pulse SOS Button. With one tap, the app automatically grabs the user's precise GPS coordinates and begins recording voice audio to capture ambient context. Users also have access to an AI chatbot for emergency assistance, a live map showing flood risks, and real-time weather warnings. It is truly an all-in-one survival tool."
+
+[Slide 6: Admin Dashboard & Conclusion] (5:15 - 6:00)
+[Summary tone, powerful and inspiring]
+
+"Back at the command center, rescue coordinators use our Streamlit-powered dashboards to monitor the entire situation. They can see all active SOS signals mapped out, track resource allocations like available boats and food packs, and view real-time AI predictions.
+
+In conclusion, FloodSOS is not just a reporting app. It is an end-to-end intelligent ecosystem. By combining machine learning, real-time geographic data, and user-centric mobile design, we transform chaotic situations into calculated, precise rescue operations.
+
+[Look directly at the audience, pause for 1 second before the final hook]
+We are turning data into action, and action into saved lives.
+
+Thank you for your time. I would now be happy to take any questions you might have about our architecture, our AI models, or our app functionality."

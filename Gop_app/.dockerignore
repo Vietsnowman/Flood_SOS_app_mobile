@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ruff_cache/
+*.joblib
+calib_model.joblib
+feature_list.joblib
+realtime_outputs/
+cache/
+models/
+dataset_mét_độ(2020).csv
+*.log

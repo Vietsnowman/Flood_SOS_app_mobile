@@ -100,18 +100,26 @@ Flood_SOS_app_mobile/
 │
 ├── FloodSOS-Complete/
 │   ├── frontend-flutter/        # 📱 Flutter Mobile App (Calm Crisis UI)
-│   │   └── lib/
-│   │       ├── config/theme_config.dart           # Ocean/Teal palette
-│   │       ├── widgets/glass_widgets.dart         # Glassmorphism widgets
-│   │       ├── screens/
-│   │       │   ├── home_screen.dart               # Pulse SOS Button, Bottom Nav
-│   │       │   ├── sos_routing_result_screen.dart # Chỉ dẫn routing AI
-│   │       │   └── weather_screen.dart            # Cảnh báo rủi ro ngập
-│   │       ├── services/api_service.dart          # HTTP client
-│   │       └── providers/                         # State management
-│   └── Sos-backend/             # 🔧 Node.js Backend
-│       └── server.js            # Express API (:3002)
+│   │   ├── lib/
+│   │   │   ├── config/theme_config.dart           # Ocean/Teal palette
+│   │   │   ├── widgets/glass_widgets.dart         # Glassmorphism widgets
+│   │   │   ├── screens/...                        # UI screens
+│   │   │   ├── services/api_service.dart          # HTTP client (sử dụng Dio + dotenv)
+│   │   │   └── providers/...                      # State management
+│   │   ├── .env                                   # Cấu hình BACKEND_URL, API_KEY
+│   │   └── pubspec.yaml
+│   │
+│   └── Sos-backend/             # 🔧 Node.js Backend (MVC Architecture)
+│       ├── config/              # Kết nối Database
+│       ├── controllers/         # Xử lý Logic (Auth, Chat, SOS)
+│       ├── models/              # Schema MongoDB
+│       ├── routes/              # Express Router API
+│       ├── services/            # Logic nghiệp vụ gọi AI Core, xử lý CSV
+│       ├── tests/               # 🆕 Jest Unit test files (100% coverage routes)
+│       ├── server.js            # Entry point thu gọn
+│       └── .env                 # Biến môi trường hệ thống (Cổng, Database, API Keys, Credentials)
 │
+├── docker-compose.yml           # 🐳 Khởi chạy toàn bộ hệ thống bằng 1 lệnh
 └── README.md
 ```
 
@@ -181,41 +189,81 @@ cd FloodSOS-Complete/Sos-backend
 npm install
 ```
 
-### Bước 3 — Cài Flutter
+###**Cấu hình biến môi trường:**
+Tạo file `.env` (copy từ mẫu có sẵn) và điền:
+```env
+PORT=3002
+MONGO_URI=mongodb://127.0.0.1:27017/floodsos
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+JWT_SECRET=your-secret
+OPENWEATHER_KEY=your-api-key
+PRIORITY_API_URL=http://127.0.0.1:8765/predict
+ROUTING_API_URL=http://127.0.0.1:8766/route
+```
+
+### 3. Cài Đặt Frontend
 
 ```bash
-cd FloodSOS-Complete/frontend-flutter
+cd ../frontend-flutter
 flutter pub get
+```
+
+**Cấu hình Flutter:**
+Tạo file `.env` tại thư mục root của Flutter chứa:
+```env
+BACKEND_URL=http://127.0.0.1:3002
+OWM_API_KEY=your_openweather_key
+```
+
+### 4. Kiểm Thử Hệ Thống (Unit Tests)
+
+**Backend Node.js (Jest & Supertest):**
+```bash
+cd sos-backend
+npm test
+```
+
+**AI Core Python (Pytest & TestClient):**
+```bash
+cd Gop_app
+uv run pytest tests/ -v
 ```
 
 ---
 
-### Chạy Hệ Thống (Mỗi ngày mở 5 terminal)
+## 🎮 Khởi Chạy Ứng Dụng
 
+Hệ thống được thiết kế để chạy tự động bằng Docker hoặc chạy độc lập từng service.
+
+### Cách 1: Chạy Siêu Tốc Bằng Docker (Khuyên Dùng) 🐳
+Đảm bảo bạn đã cài Docker Desktop & máy ảo Python đã train ra file models/ .joblib.
+Từ thư mục root của dự án:
 ```bash
-# ── Terminal 1: Node.js Backend (port 3002) ─────────────────────────────────
+docker compose up -d --build
+```
+*Lệnh này sẽ tự động khởi tạo MongoDB, Node.js Backend, 2 Python FastAPI và 2 màn hình Streamlit.*
+
+### Cách 2: Chạy Thủ Công Từng Dev Server
+
+**Khởi động AI Core (Terminal 1 & 2):**
+```bash
+cd Gop_app
+uv run uvicorn src.api.priority:app --port 8765 --reload
+uv run uvicorn src.api.routing:app --port 8766 --reload
+```
+
+**Khởi động Node.js Backend Server (Terminal 3):**
+```bash
 cd FloodSOS-Complete/Sos-backend
-node server.js
+npm run dev
+```
 
-# ── Terminal 2: Priority API — Urgency Scoring (port 8765) ──────────────────
-cd Gop_app
-uv run uvicorn priority_api:app --host 0.0.0.0 --port 8765 --reload
-
-# ── Terminal 3: Routing API — Flood-Aware Routing (port 8766) ───────────────
-cd Gop_app
-uv run uvicorn routing_api:app --host 0.0.0.0 --port 8766 --reload
-
-# ── Terminal 4: Streamlit Dashboard Điều Phối ────────────────────────────────
-cd Gop_app
-uv run streamlit run app6.py
-
-# ── Terminal 5: Streamlit SOS Map + Shelter ──────────────────────────────────
-cd Gop_app
-uv run streamlit run app_SOS_shelters7.py
-
-# ── Terminal 6 (tuỳ chọn): Flutter App ──────────────────────────────────────
-cd FloodSOS-Complete/frontend-flutter
-flutter build windows
+**Kết quả mong đợi:**
+```
+🚀 SERVER ĐANG CHẠY TẠI: http://0.0.0.0:3002       
+📡 API Gửi SOS: POST http://localhost:3002/api/sos/voice
+✅ MongoDB Connected thành công!
 ```
 
 ---
@@ -392,7 +440,7 @@ name, lat, lon, capacity, commune_gid3
 | osmnx + networkx | 1.9+ | Routing thực tế theo đường bộ |
 | Streamlit | 1.35+ | Dashboard điều phối |
 | Flutter | 3.19+ | Mobile App |
-| Node.js | 18+ | Backend proxy |
+| Node.js | 18+ | Backend |
 | MongoDB | 7+ | Lưu trữ SOS |
 
 ---
