@@ -32,8 +32,8 @@
 | Thành phần | Công nghệ | Vai trò |
 |---|---|---|
 | **🐍 AI Core** | Python 3.11.9 + FastAPI + Streamlit | Dự báo ngập, định tuyến cứu hộ, điều phối |
-| **📱 Mobile App** | Flutter (Calm Crisis UI) | Gửi SOS, hiển thị chỉ dẫn weather/routing |
-| **🔧 SOS Backend** | Node.js + MongoDB | Nhận SOS, lưu trữ, proxy sang AI |
+| **📱 Mobile App** | Flutter (Calm Crisis UI + Offline AI) | Gửi SOS, thời tiết 24h, **P2P Mesh Network**, **Offline A* Routing** |
+| **🔧 SOS Backend** | Node.js + MongoDB | Nhận SOS, lưu trữ, WebSocket Real-time tracking, proxy API |
 
 ---
 
@@ -155,12 +155,17 @@ Flood_SOS_app_mobile/
 
 ---
 
-### 5. 🌊 Giao Diện Calm Crisis (Mobile)
+### 5. 🌊 Giao Diện Calm Crisis & Advanced Weather (Mobile)
 Mobile app được thiết kế theo phong cách **Calm Crisis**:
 - **Glassmorphism Design:** Các thẻ thông tin, form đăng nhập, box chat đều tựa như kính mờ trên nền đại dương sâu.
 - **Ocean & Teal Palette:** Sử dụng gradient biển sâu (`#0D1B2A` → `#1F3A4B`) và accent màu lục lam (`#00BCD4`) tạo cảm giác bình tĩnh nhưng dứt khoát.
-- **Interactive SOS Button:** Nút bấm SOS dạng xung (pulse animation) mô phỏng sóng lan tỏa, giúp người dùng dễ dàng thu hút sự chú ý.
-- **Bottom Navigation Bar:** Hỗ trợ điều hướng đa năng (SOS / Bản đồ Cứu hộ / Hotline AI / Cảnh báo Thời tiết).
+- **Advanced Weather Dashboard:** Tích hợp radar lượng mưa trực tiếp trên bản đồ, biểu đồ phân tích 24h (`fl_chart`), và lưu trữ offline (`SharedPreferences`) để có thể xem thông tin khi mất mạng.
+
+### 6. 📴 Khả Năng Kháng Lỗi Ngoại Tuyến (Offline Resilience) - 🆕 MỚI
+Để đảm bảo ứng dụng vẫn cứu sống người khi hạ tầng mạng viễn thông / 4G bị sập:
+- **P2P Mesh Networking (UDP Multicast):** Các thiết bị có thể thiết lập mạng lưới cục bộ, phát sóng vị trí và gửi tín hiệu SOS cho nhau **không cần Internet**.
+- **Local AI Offline Routing:** Sử dụng thuật toán **A*** tối ưu hóa đường đi chạy hoàn toàn Offline trên điện thoại, đưa người dân đến nơi an toàn khi không thể trỏ tới hệ thống AI tổng trên Server.
+- **Hybrid Real-Time Tracking (Admin):** Màn hình chỉ huy kết hợp nhận tín hiệu vị trí đồng thời từ cả **Online (Socket.IO)** và radar **Offline (UDP Mesh)**, đảm bảo bức tranh toàn cảnh không bị gián đoạn.
 
 ---
 
