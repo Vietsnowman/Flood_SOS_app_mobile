@@ -256,7 +256,8 @@ docker compose up -d --build
 Mở một Terminal khác:
 ```bash
 cd FloodSOS-Complete/frontend-flutter
-flutter run -d windows
+flutter build windows
+flutter build apk --release
 ```
 
 ### 💻 CÁCH 2: Chạy Thủ Công (Dành Cho Phát Triển / Sửa Code)
@@ -290,7 +291,8 @@ uv run streamlit run app6.py
 **Tab 5: Chạy App Mobile Flutter**
 ```bash
 cd FloodSOS-Complete/frontend-flutter
-flutter run
+flutter build windows
+flutter build apk --release
 ```
 
 ---
