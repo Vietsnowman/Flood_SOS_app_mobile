@@ -1,0 +1,101 @@
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.50.35717\bin\HostX64\x64\CL.exe /c /I"D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\windows\flutter\ephemeral" /I"D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\windows\flutter\ephemeral\cpp_client_wrapper\include" /nologo /W4 /WX /diagnostics:column /O2 /Ob2 /D _WINDLL /D _UNICODE /D UNICODE /D WIN32 /D _WINDOWS /D NDEBUG /D _HAS_EXCEPTIONS=0 /D FLUTTER_PLUGIN_IMPL /D UNICODE /D _UNICODE /D "CMAKE_INTDIR=\"Release\"" /D geolocator_windows_plugin_EXPORTS /EHsc /MD /GS /fp:precise /GR /std:c++20 /Fo"geolocator_windows_plugin.dir\Release\\" /Fd"geolocator_windows_plugin.dir\Release\vc145.pdb" /external:W0 /Gd /TP /wd4100 /errorReport:queue  /external:I "D:/Flood_SOS_app_mobile/FloodSOS-Complete/frontend-flutter/build/windows/x64/include" /await:strict "D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\windows\flutter\ephemeral\.plugin_symlinks\geolocator_windows\windows\geolocator_plugin.cpp" "D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\windows\flutter\ephemeral\.plugin_symlinks\geolocator_windows\windows\geolocator_windows.cpp"
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.50.35717\bin\HostX64\x64\CL.exe /c /I"D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\windows\flutter\ephemeral" /I"D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\windows\flutter\ephemeral\cpp_client_wrapper\include" /nologo /W4 /WX /diagnostics:column /O2 /Ob2 /D _WINDLL /D _UNICODE /D UNICODE /D WIN32 /D _WINDOWS /D NDEBUG /D _HAS_EXCEPTIONS=0 /D FLUTTER_PLUGIN_IMPL /D UNICODE /D _UNICODE /D "CMAKE_INTDIR=\"Release\"" /D permission_handler_windows_plugin_EXPORTS /EHsc /MD /GS /fp:precise /GR /std:c++20 /Fo"permission_handler_windows_plugin.dir\Release\\" /Fd"permission_handler_windows_plugin.dir\Release\vc145.pdb" /external:W0 /Gd /TP /wd4100 /errorReport:queue  /external:I "D:/Flood_SOS_app_mobile/FloodSOS-Complete/frontend-flutter/build/windows/x64/include" /await "D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\windows\flutter\ephemeral\.plugin_symlinks\permission_handler_windows\windows\permission_handler_windows_plugin.cpp"
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+[        ]   :cmErrorLevel
+[        ]   if %errorlevel% neq 0 goto :VCEnd
+[   +1 ms]   CMake Error at cmake_install.cmake:110 (file):
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+MSB3073: if %errorlevel% 
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+:cmErrorLevel %errorlevel% 
+mon.targets(166,5): error 
+MSB3073: :cmErrorLevel [D:\F
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+MSB3073: if %errorlevel% 
+mon.targets(166,5): error 
+[        ] Done Building Project "D:\Flood_SOS_app_mobile\FloodSOS-Complete\frontend-flutter\build\windows\x64\INSTALL.vcxproj" (default targets) -- FAILED.
+[   +1 ms] Build FAILED.
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+MSB3073: if %errorlevel% 
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+:cmErrorLevel %errorlevel% 
+mon.targets(166,5): error 
+MSB3073: :cmErrorLevel [D:\F
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+mon.targets(166,5): error 
+MSB3073: if %errorlevel% 
+mon.targets(166,5): error 
+[   +1 ms]     1 Error(s)
+failed.
+--- END ERRORS ---
+ymous closure> (package:flut
+ter_tools/src/runner/flutter
+_command_runner.dart:496:9)
+           <asynchronous 
+suspension>
+           #8      
+AppContext.run.<anonymous 
+closure> (package:flutter_to
+ols/src/base/context.dart:15
+4:19)
+           <asynchronous 
+suspension>
+           #9      FlutterCo
+mmandRunner.runCommand (pack
+age:flutter_tools/src/runner
+/flutter_command_runner.dart
+:431:5)
+           <asynchronous 
+suspension>
+           #10     FlutterCo
+mmandRunner.run.<anonymous 
+closure> (package:flutter_to
+ols/src/runner/flutter_comma
+nd_runner.dart:307:33)
+           <asynchronous 
+suspension>
+           #11     
+run.<anonymous 
+closure>.<anonymous 
+closure> (package:flutter_to
+ols/runner.dart:104:11)
+           <asynchronous 
+suspension>
+           #12     
+AppContext.run.<anonymous 
+closure> (package:flutter_to
+ols/src/base/context.dart:15
+4:19)
+           <asynchronous 
+suspension>
+           #13     main (pac
+kage:flutter_tools/executabl
+e.dart:103:3)
+           <asynchronous 
+suspension>
+
+
+[        ] Running 1 shutdown hook
+[   +1 ms] Shutdown hooks complete
+[ +193 ms] exiting with code 1

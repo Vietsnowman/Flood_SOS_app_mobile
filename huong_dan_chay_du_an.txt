@@ -1,0 +1,64 @@
+HƯỚNG DẪN KHỞI CHẠY TOÀN BỘ DỰ ÁN FLOOD SOS
+===========================================
+
+Dự án Flood SOS là một hệ thống lớn bao gồm nhiều dịch vụ kết nối với nhau. Để chạy toàn bộ hệ thống, bạn có thể làm theo hướng dẫn dưới đây:
+
+---------------------------------------------------------
+CÁCH 1: KHỞI CHẠY TỰ ĐỘNG BẰNG SCRIPT (Khuyên dùng)
+---------------------------------------------------------
+Máy tính đã được cấu hình sẵn một file PowerShell để tự bật tất cả dịch vụ phụ trợ. Bạn mở Terminal / PowerShell tại thư mục gốc và chạy:
+    cd C:\Flood_SOS_app_mobile
+    .\run_all_services.ps1
+
+Script này sẽ tự động bật 5 cửa sổ riêng biệt để chạy 5 dịch vụ:
+1. Node.js Backend Server (Quản lý User, Sos, Socket.IO)
+2. Priority API (Python)
+3. Routing API (Python - Thuật toán đường đi AI)
+4. Streamlit Dashboard (Dashboard quản lý app6.py)
+5. Streamlit SOS Map (Dashboard luồng trạm cứu hộ app_SOS_shelters7.py)
+
+Sau khi các cửa sổ kia chạy, bạn chỉ cần mở Terminal khác để chạy App Mobile ở điện thoại (xem phần CHẠY ỨNG DỤNG ĐIỆN THOẠI bên dưới).
+
+---------------------------------------------------------
+CÁCH 2: KHỞI CHẠY THỦ CÔNG TỪNG DỊCH VỤ
+---------------------------------------------------------
+Nếu bạn muốn tự bật từng dịch vụ để theo dõi log báo lỗi.
+
+BƯỚC 1: Chạy Backend (Node.js)
+    - Mở Terminal và gõ:
+        cd C:\Flood_SOS_app_mobile\Floodsos1\Sos-backend
+        node server.js
+    -> Ứng dụng sẽ chạy ở cổng 3002.
+
+BƯỚC 2: Chạy các AI Services và Dashboard (Python, Streamlit)
+    - Tại thư mục C:\Flood_SOS_app_mobile\Gop_app đã tích hợp package manager uv siêu nhanh.
+    - Mở 4 cửa sổ Terminal riêng biệt:
+        [1] Chạy Priority API: 
+            cd C:\Flood_SOS_app_mobile\Gop_app
+            uv run uvicorn priority_api:app --host 0.0.0.0 --port 8765 --reload
+           
+        [2] Chạy Routing API:
+            cd C:\Flood_SOS_app_mobile\Gop_app
+            uv run uvicorn routing_api:app --host 0.0.0.0 --port 8766 --reload
+           
+        [3] Chạy Dashboard Tổng Quan:
+            cd C:\Flood_SOS_app_mobile\Gop_app
+            uv run streamlit run app6.py
+           
+        [4] Chạy Dashboard Cứu Hộ:
+            cd C:\Flood_SOS_app_mobile\Gop_app
+            uv run streamlit run app_SOS_shelters7.py
+
+---------------------------------------------------------
+CHẠY ỨNG DỤNG ĐIỆN THOẠI (FLUTTER)
+---------------------------------------------------------
+Sau khi các Backend/API ở các bước trên đã chạy mượt mà, bạn tiến hành bật App Flutter lên điện thoại:
+    - Mở Terminal cuối cùng:
+        cd C:\Flood_SOS_app_mobile\Floodsos1\frontend-flutter
+        flutter clean         (Dùng khi gặp lỗi cache build cũ)
+        flutter pub get       (Để tải lại gói thư viện nếu cần)
+        flutter run           (Chạy debug lên máy Ảo hoặc máy Thật đang kết nối)
+        
+LƯU Ý KẾT NỐI (QUAN TRỌNG): 
+- Nếu kết nối vào máy ảo Android: Mặc định backend URL là 10.0.2.2.
+- Nếu chạy lên ĐIỆN THOẠI THẬT (cắm cáp) cùng chung mạng WiFi: Bạn phải đổi ip (như kiểu 192.168.1.X của máy tính bạn) bên trong file `frontend-flutter/.env` hoặc ở default fallback của `frontend-flutter\lib\services\api_service.dart` thành IP WiFi của máy tính, nếu không điện thoại sẽ không kết nối được tới Backend.

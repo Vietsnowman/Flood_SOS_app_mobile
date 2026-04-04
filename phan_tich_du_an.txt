@@ -1,0 +1,407 @@
+================================================================================
+  FLOODSOS – PHÂN TÍCH TOÀN BỘ DỰ ÁN
+  Tổng hợp bởi Antigravity AI Assistant | 02/04/2026
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+I. TỔNG QUAN HỆ THỐNG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FloodSOS là hệ thống quản lý lũ lụt và cứu hộ khẩn cấp cho tỉnh Nghệ An,
+tích hợp 4 tầng công nghệ:
+
+  1. Mobile App (Flutter/Dart)         → Giao diện người dùng & SOS
+  2. Node.js Backend (Express)         → API Gateway, REST, Socket.IO
+  3. AI Core (Python FastAPI)          → Phân tích ngập, định tuyến cứu hộ
+  4. Streamlit Dashboards (Python)     → Điều phối & giám sát thời gian thực
+
+Toàn bộ hệ thống chạy trong Docker (6 containers), giao tiếp qua mạng nội bộ
+"floodsos-net".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+II. KIẾN TRÚC DOCKER (docker-compose.yml)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Container                Port    Vai trò
+  ─────────────────────────────────────────────────────────────────────────
+  floodsos-mongodb          27017   Cơ sở dữ liệu MongoDB (SOS alerts, users)
+  floodsos-backend          3002    Node.js – REST API + Socket.IO
+  floodsos-priority-api     8765    FastAPI – Tính urgency score + flood zones
+  floodsos-routing-api      8766    FastAPI – Định tuyến cứu hộ flood-aware
+  floodsos-streamlit-dash   8501    Dashboard điều phối (app6.py)
+  floodsos-streamlit-sos    8502    Dashboard SOS + shelter map (app_SOS_shelters7.py)
+
+  Dockerfile:
+    Gop_app/Dockerfile      → Full image (torch, CUDA, Streamlit) [~4GB]
+    Gop_app/Dockerfile.api  → Lightweight image (API only, pip) [~500MB]
+                              * priority-api + routing-api dùng Dockerfile.api
+                              * Streamlit dùng Dockerfile đầy đủ
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+III. CORE AI – CHI TIẾT TỪNG PHẦN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  AI-1: MÔ HÌNH DỰ BÁO NGẬP LỤNG THEO XÃ (Commune-level Flood Forecast)   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  File chính:  Gop_app/train_flood_model_final.py
+               Gop_app/predict.py
+               Gop_app/realtime.py
+
+  Model đã train (Gop_app/models/):
+    • model_prob_no_leak.pkl   (8.5 MB)  – Dự báo xác suất ngập tại xã
+    • model_area_no_leak.pkl   (11.6 MB) – Dự báo diện tích ngập (km²)
+    • model_ratio_no_leak.pkl  (12.3 MB) – Dự báo tỷ lệ diện tích ngập
+
+  Dữ liệu huấn luyện (Gop_app/data/):
+    • NgheAn_weather32full_flood_merge_by_commune_time_2023_NO_NaN.csv (340 MB)
+    • NgheAn_weather32full_flood_merge_by_commune_time_2024_NO_NaN.csv (340 MB)
+    • NgheAn_weather32full_flood_merge_by_commune_time_2025_NO_NaN.csv (406 MB)
+    • DanSo_Xa.csv – Dân số theo từng xã
+
+  Đầu vào (Features):
+    - Dữ liệu thời tiết 32 biến (precipitation, temperature, humidity, v.v.)
+    - Mã xã (commune_id), thời gian (timestamp)
+
+  Đầu ra:
+    - flood_prob:  Xác suất ngập [0,1] tại từng xã
+    - flood_area:  Diện tích dự báo bị ngập (km²)
+    - flood_ratio: Tỷ lệ % xã bị ngập
+
+  Realtime pipeline:
+    1. realtime.py → fetch thời tiết từ Open-Meteo API
+    2. Chạy model → xuất kết quả ra realtime_outputs/
+    3. scheduler_cache.py → định kỳ cập nhật cache
+
+  Output files (realtime_outputs/):
+    • flood_point_probability_rt.csv  – Xác suất ngập theo tọa độ lưới (lat/lon)
+    • flood_extent_mask_rt.csv        – Mặt nạ vùng ngập
+    • zone_points_rt.csv              – Kết quả theo zone
+    • meta_rt.json                    – Metadata: thời gian chạy, threshold
+      (Lần chạy gần nhất: 2026-03-14, threshold=0.133, cell_area=5.7m²)
+
+  Tình trạng: ✅ Models đã train, data đã có. Cần chạy lại realtime.py
+              để cập nhật flood_point_probability_rt.csv mới nhất.
+
+──────────────────────────────────────────────────────────────────────────────
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  AI-2: MÔ HÌNH PHÂN TÍCH ĐỘ ƯU TIÊN SOS (SOS Priority Scoring)           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  File chính:  Gop_app/predict_sos_priority.py
+               Gop_app/train_sos_priority.py
+               Gop_app/priority_api.py  (FastAPI endpoint port 8765)
+
+  Kiến trúc mô hình: Neural Network (PyTorch)
+    Input (8 features):
+      lat, lon            – Tọa độ SOS
+      flood_prob_near     – Xác suất ngập tại điểm gần nhất
+      people_count        – Số người cần cứu
+      status_enc          – Trạng thái SOS (open=0, in_progress=1, closed=2)
+      hour_of_day         – Giờ trong ngày (0-23)
+      is_night            – 1 nếu 22:00-05:59
+      is_weekend          – 1 nếu Thứ 7/CN
+
+    Kiến trúc Net:
+      Linear(8→32) → ReLU → Dropout(0.3) → Linear(32→16) → ReLU → Linear(16→1) → Sigmoid
+
+    Output:
+      urgency_prob: float [0,1] – Xác suất SOS cần xử lý trong ≤15 phút
+
+  Model files (Gop_app/models/):
+    • sos_priority_model.pt     – PyTorch model weights (cần chạy train trước)
+    • sos_priority_scaler.joblib – StandardScaler cho input normalization
+
+  Calibration:
+    • calib_model.joblib (11.3 MB) – Mô hình calibration sau khi train
+
+  API Endpoints (:8765):
+    POST /predict   → { lat, lon, flood_prob_near, people_count, status }
+                    ← { urgency_prob, is_urgent, model_loaded }
+    GET  /health    → { status, model_loaded }
+    GET  /flood-zones → Danh sách 1000 điểm lưới ngập từ base_points_static.csv
+
+  Fallback khi model chưa train:
+    urgency_prob = min(1.0, flood_prob*0.7 + people_count/20)
+
+  Tích hợp với Node.js Backend:
+    POST /api/sos/voice → Node gọi priority-api → lưu urgency vào MongoDB + CSV
+
+  Tình trạng: ⚠️  Model .pt chưa tồn tại trong /models/ → đang dùng fallback
+              Cần chạy: python train_sos_priority.py
+
+──────────────────────────────────────────────────────────────────────────────
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  AI-3: TÍNH TOÁN VÙNG NGẬP (Flood Zone Grid)                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  File chính:  Gop_app/priority_api.py  (GET /flood-zones)
+               Gop_app/base_points_static.csv
+               Gop_app/2_build_base_points.py
+
+  Phương pháp: TWI-based heuristic (không cần model riêng)
+    Công thức: p_flood = TWI/15 * 0.5  +  (1 - elev/20) * 0.3
+                       + (1 - river_dist/500) * 0.2
+
+  Dữ liệu nguồn (base_points_static.csv – 168 KB):
+    1000 điểm lưới, phủ vùng Nghệ An: lat [18.77, 18.80], lon [105.58, 105.61]
+    Cột: X, Y (UTM), lat, lon, TWI_UTM, DEMC_UTM (elevation), RiverDist_,
+         Slope_UTM, population_density
+
+  Output mỗi điểm:
+    { lat, lon, p_flood: [0,1], priority_score: [0,100],
+      priority_level: "LOW|MEDIUM|HIGH|CRITICAL", affected_population }
+
+  Mức nguy hiểm:
+    p_flood >= 0.7 → CRITICAL (radius 600m trên app)
+    p_flood >= 0.4 → HIGH     (radius 450m)
+    p_flood >= 0.2 → MEDIUM   (radius 350m)
+    p_flood < 0.2  → LOW      (radius 280m)
+
+  Hiển thị trên Flutter:
+    map_screen.dart → CircleLayer, useRadiusInMeter=true, alpha=0.45
+    Auto-zoom về centroid vùng sau khi load
+
+  Tình trạng: ✅ Đang chạy, 1000 điểm sẵn sàng.
+
+──────────────────────────────────────────────────────────────────────────────
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  AI-4: ĐỊNH TUYẾN CỨU HỘ FLOOD-AWARE (Flood-Aware Routing)               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  File chính:  Gop_app/routing_api.py  (port 8766)
+               Gop_app/route_calculator_osm.py
+
+  Logic định tuyến:
+    1. Nhận tọa độ SOS (lat, lon)
+    2. Lookup flood_prob tại điểm đó từ flood_point_probability_rt.csv
+    3. Nếu flood_prob < 0.5 → chế độ SELF-EVACUATION
+       - Tìm shelter gần nhất (data/shelters.csv)
+       - Tính đường qua OSM (osmnx + graphml cached)
+       - Chia tuyến thành chặng 800m, gán flood level từng chặng
+    4. Nếu flood_prob >= 0.5 → chế độ RESCUE-DISPATCH
+       - Tải vị trí trạm cứu hộ (realtime_outputs/rescue_base.json)
+       - Tính đường từ trạm → điểm SOS qua OSM
+       - Gán phương án phương tiện từng chặng
+
+  OSM Graph:
+    realtime_outputs/osm_graph.graphml (10.2 MB) – đồ thị đường bộ cached
+
+  Shelter data:
+    data/shelters.csv           – Danh sách điểm trú ẩn chính thức
+    realtime_outputs/shelters.csv – Shelter phát sinh từ realtime
+
+  Phân loại chặng:
+    flood_prob >= 0.65 → heavy    → "Bắt buộc xuồng máy / áo phao"
+    flood_prob >= 0.40 → moderate → "Xe tải cao hoặc thuyền nhỏ"
+    flood_prob >= 0.20 → low      → "Xe máy / xe bán tải, đi chậm"
+    flood_prob <  0.20 → none     → "Xe ô tô / xe máy bình thường"
+
+  API:
+    POST /route → { lat, lon }
+              ← RouteResponse { flood_level, flood_prob, mode, route[[lat,lon]],
+                                segments[], total_distance_km, summary,
+                                shelter?, rescue_base?, sos_target? }
+    GET  /health → { status, rt_csv_exists, shelters_exists, rescue_base_exists }
+
+  Tình trạng: ✅ Đang chạy trong Docker (floodsos-routing-api:8766)
+              ⚠️  Thiếu data/shelters.csv đầy đủ → shelter lookup có thể fail
+              ⚠️  realtime_outputs/rescue_base.json chưa được config
+
+──────────────────────────────────────────────────────────────────────────────
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  AI-5: DASHBOARD ĐIỀU PHỐI (Streamlit – app6.py :8501)                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  File:  Gop_app/app6.py (48 KB)
+
+  Chức năng:
+    - Hiển thị bản đồ ngập theo xã theo thời gian thực
+    - Phân phối nguồn lực cứu hộ (nhân lực, xe, thuyền)
+    - Xem dự báo ngập 12h tới
+    - Quản lý DB SOS + lịch sử
+    - Xuất báo cáo PDF
+
+  Tình trạng: ✅ Container chạy. Truy cập http://localhost:8501
+
+──────────────────────────────────────────────────────────────────────────────
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  AI-6: DASHBOARD SOS + SHELTER (Streamlit – app_SOS_shelters7.py :8502)   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  File:  Gop_app/app_SOS_shelters7.py (47 KB)
+
+  Chức năng:
+    - Bản đồ realtime các điểm SOS đang hoạt động
+    - Vị trí các điểm trú ẩn + trạng thái
+    - Theo dõi drone / lực lượng cứu hộ
+    - Phân tích xác suất khẩn cấp từng SOS
+
+  Tình trạng: ✅ Container chạy. Truy cập http://localhost:8502
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IV. MOBILE APP (Flutter – frontend-flutter)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Screens (20 màn hình):
+  ─────────────────────────────────────────────────────────────────────────
+  home_screen.dart          – Trang chủ: vị trí, mini-map, nút SOS nhanh
+  map_screen.dart           – Bản đồ tổng hợp: flood zones, SOS markers
+  voice_sos_screen.dart     – Gửi SOS bằng giọng nói + mô tả
+  panic_sos_screen.dart     – Nút SOS khẩn cấp 1 chạm
+  sos_routing_result_screen – Hiển thị kết quả định tuyến cứu hộ
+  alerts_list_screen.dart   – Danh sách SOS đang mở
+  nearby_rescue_screen.dart – Tình nguyện viên cứu hộ cộng đồng (P2P)
+  chat_screen.dart          – Chatbot hỗ trợ khẩn cấp
+  weather_screen.dart       – Dự báo thời tiết
+  admin_*.dart (5 màn)      – Quản trị: dashboard, map, tracking, users, settings
+  login/register/profile    – Auth & tài khoản
+
+  Providers / Services:
+    LocationProvider     – Quản lý tọa độ, session random Nghệ An
+    ApiService           – Gọi tất cả endpoints Node.js backend
+    OfflineChatbotService – Chatbot offline fallback
+
+  Location Strategy:
+    • Platform.isWindows → skip GPS → dùng ngay session Nghệ An point
+    • Mobile GPS ngoài bbox Nghệ An [18.5-20.0, 104.0-106.5] → fallback
+    • 7 tọa độ Nghệ An preset (nghe_an_locations.dart), random 1 khi khởi động
+
+  AI Integration từ app:
+    SOS gửi → Node.js → priority-api (urgency score)
+    "Đường đến nơi an toàn" → Node.js → routing-api → route response
+    Tab "Ngập" → Node.js /api/flood-zones → priority-api /flood-zones
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+V. NODE.JS BACKEND (Floodsos1/Sos-backend – port 3002)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Routes:
+    /api/auth/login          – Đăng nhập
+    /api/sos                 – GET tất cả SOS alerts
+    /api/sos/voice           – POST gửi SOS (voice/text)
+    /api/sos/route           – POST yêu cầu định tuyến (→ routing-api)
+    /api/sos/analyze-route   – GET tuyến đường legacy (tính trực tiếp trong Node)
+    /api/sos/:id/resolve     – PUT xử lý SOS
+    /api/sos/:id/volunteer/* – Tình nguyện viên P2P (accept/arrive/complete)
+    /api/chat                – POST chatbot
+    /api/flood-zones         – GET proxy → priority-api /flood-zones
+
+  Realtime (Socket.IO):
+    nearby_sos               – Broadcast SOS trong 500m cho P2P rescue
+    volunteer_update         – Trạng thái tình nguyện viên
+    sos_resolved             – Thông báo SOS đã xử lý
+    tracking_update          – Cập nhật vị trí realtime
+    tracking_sync_offline    – Đồng bộ tracking offline
+
+  Services:
+    aiService.js    – Gọi priority-api (urgency) + routing-api (route)
+    floodService.js – Tính flood probability gần điểm SOS từ base_points_static
+    csvService.js   – Lưu/đọc SOS vào file CSV backup
+
+  Database (MongoDB):
+    SOSAlert    – SOS đang mở
+    SOSHistory  – Lịch sử SOS đã xử lý
+    User        – Tài khoản người dùng
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VI. ĐÁNH GIÁ TỔNG THỂ – TRẠNG THÁI HIỆN TẠI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✅ Hoạt động tốt:
+     - Docker: Tất cả 6 container Up & Running
+     - priority-api (:8765): Uvicorn running, /flood-zones trả 1000 điểm
+     - routing-api (:8766): Uvicorn running, /route sẵn sàng
+     - Node.js backend (:3002): Socket.IO + REST đầy đủ
+     - Flutter app: GPS fallback Nghệ An, bản đồ ngập overlay đúng
+     - Streamlit dashboards (:8501, :8502): Running
+
+  ⚠️  Cần xử lý / Rủi ro:
+
+  1. MODEL SOS PRIORITY CHƯA TRAIN
+     File: Gop_app/models/sos_priority_model.pt → KHÔNG tồn tại
+     Hệ quả: priority-api đang dùng fallback heuristic, không dùng Neural Net
+     Khắc phục: cd Gop_app && python train_sos_priority.py
+
+  2. RESCUE_BASE CHƯA CÀI ĐẶT
+     File: realtime_outputs/rescue_base.json → chưa có tọa độ trạm cứu hộ thật
+     Hệ quả: routing "high flood" mode sẽ dùng shelter đầu tiên làm trạm
+     Khắc phục: Tạo file JSON với lat/lon trạm cứu hộ thật tại Nghệ An
+     Ví dụ: {"lat": 19.3500, "lon": 105.7020, "name": "Hạt CHCN Hoàng Mai"}
+
+  3. SHELTERS.CSV THIẾU DỮ LIỆU ĐẦY ĐỦ
+     File: data/shelters.csv (5.2 KB) vs realtime_outputs/shelters.csv (553 B)
+     Cần kiểm tra số lượng shelter trong data/shelters.csv có đủ cho tỉnh không
+
+  4. REALTIME FLOOD DATA CŨ (2026-03-14)
+     meta_rt.json cho thấy data cuối cùng từ 14/03/2026
+     Khắc phục: Chạy lại realtime.py trong Gop_app hoặc restart container định kỳ
+
+  5. TORCH TRONG DOCKERFILE.API
+     predict_sos_priority.py import torch nhưng Dockerfile.api không cài torch
+     → Nếu priority-api cần gọi model .pt, sẽ fail khi model .pt có sẵn
+     Khắc phục: Sau khi train xong, cài thêm torch vào Dockerfile.api
+                hoặc chuyển priority-api về dùng Dockerfile đầy đủ
+
+  6. FIREBASE / PUSH NOTIFICATION
+     firebase_messaging trong pubspec.yaml nhưng google-services.json
+     có thể chưa được cấu hình đúng cho build production
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VII. ĐỀ XUẤT TIẾP THEO (Theo thứ tự ưu tiên)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  [NGAY] 1. Train SOS Priority model nếu có data:
+              cd Gop_app && python train_sos_priority.py
+
+  [NGAY] 2. Tạo rescue_base.json:
+              echo {"lat":19.3500,"lon":105.7020} > Gop_app/realtime_outputs/rescue_base.json
+
+  [SẮP]  3. Cập nhật realtime flood data:
+              cd Gop_app && python realtime.py
+
+  [SẮP]  4. Test APK trên Android thật:
+              flutter build apk --release && flutter install
+
+  [SAU]  5. Thêm torch vào Dockerfile.api sau khi model .pt được train
+
+  [SAU]  6. Cấu hình Firebase push notifications cho production
+
+  [SAU]  7. Lên lịch tự động cập nhật realtime data (cron job trong Docker)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VIII. SƠ ĐỒ LUỒNG DỮ LIỆU AI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  [Open-Meteo API] ──► realtime.py ──► flood_point_probability_rt.csv
+                                   └──► flood_extent_mask_rt.csv
+                                   └──► meta_rt.json
+
+  [User SOS] ──► Flutter ──► Node.js /api/sos/voice
+                              ├──► priority-api /predict ──► urgency_prob (Neural Net / Fallback)
+                              ├──► floodService.js ──► flood_prob_near (lookup base_points_static)
+                              └──► MongoDB + CSV lưu kết quả
+
+  [User Route] ──► Flutter ──► Node.js /api/sos/route
+                               └──► routing-api /route
+                                    ├──► flood_point_probability_rt.csv (lookup flood prob)
+                                    ├──► data/shelters.csv (tìm nơi trú ẩn)
+                                    ├──► rescue_base.json (trạm cứu hộ)
+                                    └──► osm_graph.graphml (tham chiếu đường bộ)
+                                    └──► RouteResponse → Flutter vẽ polyline
+
+  [User Map] ──► Flutter ──► Node.js /api/flood-zones
+                             └──► priority-api /flood-zones
+                                  └──► base_points_static.csv
+                                       (1000 điểm × TWI/elevation/river_dist)
+                                  └──► CircleLayer (useRadiusInMeter=true) trên bản đồ
+
+================================================================================
+  Hết báo cáo | FloodSOS Project Analysis | 02/04/2026
+================================================================================

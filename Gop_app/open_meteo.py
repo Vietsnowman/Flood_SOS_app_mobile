@@ -1,5 +1,21 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import pandas as pd
+
+# Fix SSL certificate bundle path using certifi (avoids FileNotFoundError on Windows venvs)
+try:
+    import certifi
+    _SSL_VERIFY = certifi.where()
+except ImportError:
+    _SSL_VERIFY = True  # fallback to default if certifi is not installed
+
+# Configure session with retries for robust fetching
+session = requests.Session()
+retry = Retry(total=3, read=3, connect=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+adapter = HTTPAdapter(max_retries=retry)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
 
 def fetch_open_meteo_daily(lat, lon):
     url = "https://api.open-meteo.com/v1/forecast"
@@ -23,7 +39,7 @@ def fetch_open_meteo_daily(lat, lon):
         "timezone": "Asia/Bangkok"
     }
 
-    r = requests.get(url, params=params, timeout=30)
+    r = session.get(url, params=params, timeout=30, verify=_SSL_VERIFY, headers={"Connection": "close"})
     if r.status_code != 200:
         raise RuntimeError(f"Open-Meteo Error {r.status_code}: {r.text[:300]}")
 

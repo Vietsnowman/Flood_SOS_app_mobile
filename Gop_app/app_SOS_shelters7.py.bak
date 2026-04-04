@@ -1,12 +1,12 @@
 # # app_streamlit_v3_dashboard_map_sos_priority_FIXED_COMPLETE.py
 # # =========================================================
-# # Realtime Flood Forecast — Dashboard + Smart Map (V3)
+# # Realtime Flood Forecast â€” Dashboard + Smart Map (V3)
 # # + SOS Signals (CSV) + Click-to-set Rescue Base
 # # + Shortest Path Routing to Selected/Nearest SOS
 # # + SOS Priority Scoring using Flood Risk at SOS Location
 # # + Keeps BOTH maps (before & after click overlays)
 # #
-# # FIX (Cách 1): streamlit_geolocation() uses hard-coded key="loc"
+# # FIX (CÃ¡ch 1): streamlit_geolocation() uses hard-coded key="loc"
 # # => Must render at MOST ONCE per rerun to avoid DuplicateElementKey.
 # # We enforce via session_state guard: "_geo_rendered_this_run".
 # # =========================================================
@@ -50,7 +50,7 @@ RT_EXTENT_PATH = os.path.join(_APP_DIR, "realtime_outputs", "flood_extent_mask_r
 
 SOS_PATH = os.path.join(_APP_DIR, "realtime_outputs", "sos_signals.csv")
 
-# shelters.csv: ngườn ch�nh l� data/, nếu kh�ng c� th� d�ng realtime_outputs/
+# shelters.csv: ngườn chính là data/, nếu không có thì dùng realtime_outputs/
 _SHELTERS_DATA = os.path.join(_APP_DIR, "data", "shelters.csv")
 _SHELTERS_RT   = os.path.join(_APP_DIR, "realtime_outputs", "shelters.csv")
 SHELTERS_PATH = _SHELTERS_DATA if os.path.exists(_SHELTERS_DATA) else _SHELTERS_RT
@@ -142,7 +142,7 @@ def load_static_points():
 
 def load_realtime_csv():
     if not os.path.exists(RT_PROB_PATH):
-        raise FileNotFoundError(f"Không thấy file realtime: {RT_PROB_PATH}")
+        raise FileNotFoundError(f"KhÃ´ng tháº¥y file realtime: {RT_PROB_PATH}")
 
     prob = pd.read_csv(RT_PROB_PATH)
     prob["time"] = pd.to_datetime(prob["time"])
@@ -214,7 +214,7 @@ def find_nearest_shelter(user_lat, user_lon, shelters_df: pd.DataFrame):
 
 
 # # =========================================================
-# # GPS FIX — render streamlit_geolocation() at MOST once per rerun
+# # GPS FIX â€” render streamlit_geolocation() at MOST once per rerun
 # # =========================================================
 def geolocation_once_per_run():
     """
@@ -310,7 +310,7 @@ def draw_legend(map_obj):
         box-shadow: 0 3px 15px rgba(0,0,0,0.15);
         font-size: 14px;
         min-width: 220px;">
-        <b>🌡️ Risk Legend</b><br>
+        <b>ðŸŒ¡ï¸ Risk Legend</b><br>
         <div style="margin-top:6px;">
             <span style="background:{prob_color(0.1)};width:12px;height:12px;display:inline-block;border-radius:50%;"></span>
             Low (&lt; {LOW_THR})
@@ -419,7 +419,7 @@ def compute_click_impact(prob_t, static_base, meta, click_lat, click_lon, buffer
     merged = prob_t.merge(static_base, on=["X", "Y"], how="left", suffixes=("", "_static"))
 
     if "population_density" not in merged.columns or "road_density" not in merged.columns:
-        raise ValueError("❌ Missing population_density or road_density in merged data. Check base_points_static.csv")
+        raise ValueError("âŒ Missing population_density or road_density in merged data. Check base_points_static.csv")
 
     m = compute_buffer_mask(merged, click_lat, click_lon, buffer_m)
     zone = merged[m].copy()
@@ -543,7 +543,7 @@ def draw_sos(layer, sos_df: pd.DataFrame):
         col = sos_icon_color(str(s.get("status", "open")))
         folium.Marker(
             location=[float(s["lat"]), float(s["lon"])],
-            popup=f"🆘 {s.get('id','')} | {s.get('note','')} | {s.get('status','')} | {s.get('time','')}",
+            popup=f"ðŸ†˜ {s.get('id','')} | {s.get('note','')} | {s.get('status','')} | {s.get('time','')}",
             icon=folium.Icon(color=col, icon="exclamation-sign")
         ).add_to(layer)
 
@@ -584,17 +584,18 @@ def load_road_graph(center_lat: float, center_lon: float, dist: int = GRAPH_DIST
 
 
 def shortest_route(G, start_lat, start_lon, end_lat, end_lon):
-    from route_calculator_osm import road_route_waypoints
-    coords = road_route_waypoints(start_lat, start_lon, end_lat, end_lon)
-    dist_m = 0.0
-    for i in range(1, len(coords)):
-        dist_m += haversine_km(coords[i-1][0], coords[i-1][1], coords[i][0], coords[i][1]) * 1000.0
+    orig = ox.distance.nearest_nodes(G, start_lon, start_lat)
+    dest = ox.distance.nearest_nodes(G, end_lon, end_lat)
+
+    route = nx.shortest_path(G, orig, dest, weight="length")
+    coords = [(G.nodes[n]["y"], G.nodes[n]["x"]) for n in route]
+    dist_m = nx.shortest_path_length(G, orig, dest, weight="length")
     return coords, float(dist_m)
 
 
 def draw_route(map_obj, coords, color="blue"):
     """Draw an animated AntPath route + a rescue team icon at the midpoint."""
-    # Animated "ant" route – white dashes flowing on the route line
+    # Animated "ant" route â€“ white dashes flowing on the route line
     AntPath(
         locations=coords,
         delay=800,
@@ -605,14 +606,14 @@ def draw_route(map_obj, coords, color="blue"):
         opacity=0.9,
     ).add_to(map_obj)
 
-    # Place a 🚑 icon at the midpoint of the route to show the rescue team
+    # Place a ðŸš‘ icon at the midpoint of the route to show the rescue team
     mid = coords[len(coords) // 2]
     folium.Marker(
         location=mid,
-        popup="🚑 Đội cứu hộ đang trên đường",
+        popup="ðŸš‘ Äá»™i cá»©u há»™ Ä‘ang trÃªn Ä‘Æ°á»ng",
         icon=folium.DivIcon(
             html=(
-                '<div style="font-size:26px;text-align:center;margin-top:-13px;">🚑</div>'
+                '<div style="font-size:26px;text-align:center;margin-top:-13px;">ðŸš‘</div>'
             ),
             icon_size=(34, 34),
             icon_anchor=(17, 17),
@@ -628,8 +629,8 @@ st.set_page_config(page_title="Realtime Flood Map V3 + SOS (Complete FIX)", layo
 # # IMPORTANT: reset guard every rerun
 st.session_state["_geo_rendered_this_run"] = False
 
-st.title("🌊 Realtime Flood Forecast — Dashboard + Smart Map (V3) + SOS + Routing")
-st.caption("Auto refresh mỗi 5 phút • (FIX) GPS component render once per rerun to avoid DuplicateElementKey")
+st.title("ðŸŒŠ Realtime Flood Forecast â€” Dashboard + Smart Map (V3) + SOS + Routing")
+st.caption("Auto refresh má»—i 5 phÃºt â€¢ (FIX) GPS component render once per rerun to avoid DuplicateElementKey")
 
 st_autorefresh(interval=AUTO_REFRESH_MS, key="refresh_timer")
 
@@ -644,7 +645,7 @@ if "base_gps_lon" not in st.session_state:
     st.session_state["base_gps_lon"] = None
 
 # # Sidebar controls
-st.sidebar.header("⚙️ Controls")
+st.sidebar.header("âš™ï¸ Controls")
 BUFFER_RADIUS_M = st.sidebar.slider("Buffer radius (m)", 50, 2000, 300, 50)
 
 show_extent = st.sidebar.checkbox("Show extent mask", value=True)
@@ -659,11 +660,11 @@ show_heatmap = st.sidebar.checkbox("Show Heatmap", value=False)
 
 top_n_hotspots = st.sidebar.slider("Top hotspots", 5, 50, 15, 5)
 
-st.sidebar.subheader("🆘 SOS + Routing")
+st.sidebar.subheader("ðŸ†˜ SOS + Routing")
 
 base_mode = st.sidebar.radio(
     "Rescue Base mode",
-    ["🖱️ Click map to set base", "📍 Use real GPS base"],
+    ["ðŸ–±ï¸ Click map to set base", "ðŸ“ Use real GPS base"],
     index=0,
     key="base_mode"
 )
@@ -681,33 +682,33 @@ use_selected_sos = st.sidebar.checkbox("Route to selected SOS (instead of highes
 
 # # ---- GPS Widget (ONLY PLACE that renders actual component) ----
 st.sidebar.markdown("---")
-st.sidebar.subheader("📡 GPS (Shared)")
-st.sidebar.caption("GPS widget này dùng chung cho cả Rescue Base (GPS) & Citizen (GPS). Không render ở nơi khác.")
+st.sidebar.subheader("ðŸ“¡ GPS (Shared)")
+st.sidebar.caption("GPS widget nÃ y dÃ¹ng chung cho cáº£ Rescue Base (GPS) & Citizen (GPS). KhÃ´ng render á»Ÿ nÆ¡i khÃ¡c.")
 
 gps_shared = geolocation_once_per_run()
 if gps_shared:
     st.sidebar.success(f"GPS: {gps_shared['lat']:.6f}, {gps_shared['lon']:.6f}")
 else:
-    st.sidebar.info("Chưa có GPS. Hãy Allow location (nếu không được, thử HTTPS hoặc đổi browser).")
+    st.sidebar.info("ChÆ°a cÃ³ GPS. HÃ£y Allow location (náº¿u khÃ´ng Ä‘Æ°á»£c, thá»­ HTTPS hoáº·c Ä‘á»•i browser).")
 
 # # Tabs
-tab1, tab2, tab3 = st.tabs(["🚑 Rescue Dashboard", "🧍 Citizen Map", "📋 Điều Phối SOS"])
+tab1, tab2, tab3 = st.tabs(["ðŸš‘ Rescue Dashboard", "ðŸ§ Citizen Map", "ðŸ“‹ Äiá»u Phá»‘i SOS"])
 
 
 # # =========================================================
-# # TAB 1 — RESCUE
+# # TAB 1 â€” RESCUE
 # # =========================================================
 with tab1:
     meta = load_meta()
     static_base = load_static_points()
     if static_base is None:
-        st.error("❌ Không tìm thấy base_points_static.csv.")
+        st.error("âŒ KhÃ´ng tÃ¬m tháº¥y base_points_static.csv.")
         st.stop()
 
     try:
         prob_df, extent_df = load_realtime_csv()
     except Exception as e:
-        st.error(f"❌ Lỗi đọc realtime CSV: {e}")
+        st.error(f"âŒ Lá»—i Ä‘á»c realtime CSV: {e}")
         st.stop()
 
     if st.session_state.get("base_lat") is None:
@@ -747,12 +748,12 @@ with tab1:
         selected_sos = sos_scored.iloc[0]
 
     # Base update from GPS shared
-    if str(base_mode).startswith("📍") and gps_shared:
+    if str(base_mode).startswith("ðŸ“") and gps_shared:
         st.session_state["base_gps_lat"] = gps_shared["lat"]
         st.session_state["base_gps_lon"] = gps_shared["lon"]
 
     # Current base
-    if str(base_mode).startswith("📍"):
+    if str(base_mode).startswith("ðŸ“"):
         base_lat = st.session_state.get("base_gps_lat")
         base_lon = st.session_state.get("base_gps_lon")
     else:
@@ -761,26 +762,26 @@ with tab1:
 
     time_summary = build_time_summary(prob_df)
 
-    st.markdown("## 📊 Forecast Dashboard")
+    st.markdown("## ðŸ“Š Forecast Dashboard")
     dcol1, dcol2, dcol3 = st.columns([1.2, 1.2, 1.6])
     with dcol1:
-        st.markdown("### ⏱️ Time Summary")
+        st.markdown("### â±ï¸ Time Summary")
         st.line_chart(time_summary.set_index("time")[["mean_prob"]])
     with dcol2:
-        st.markdown("### 🔥 High Risk Ratio")
+        st.markdown("### ðŸ”¥ High Risk Ratio")
         chart_df = time_summary.set_index("time")[["high_ratio"]].copy()
         chart_df["high_ratio"] = chart_df["high_ratio"] * 100
         st.line_chart(chart_df)
     with dcol3:
-        st.markdown("### 🚩 Top Hotspots")
+        st.markdown("### ðŸš© Top Hotspots")
         hotspots = build_hotspots(prob_t, top_n=top_n_hotspots)
         st.dataframe(hotspots, use_container_width=True, height=250)
 
     st.markdown("---")
 
-    st.markdown("## 🆘 SOS Dashboard")
+    st.markdown("## ðŸ†˜ SOS Dashboard")
     if len(sos_scored) == 0:
-        st.info("Chưa có SOS open/in_progress trong file SOS CSV.")
+        st.info("ChÆ°a cÃ³ SOS open/in_progress trong file SOS CSV.")
     else:
         s1, s2, s3, s4 = st.columns(4)
         with s1:
@@ -801,7 +802,7 @@ with tab1:
         )
 
     st.markdown("---")
-    st.markdown("## 🗺️ Interactive Map")
+    st.markdown("## ðŸ—ºï¸ Interactive Map")
 
     center_lat = float(prob_t["lat"].mean()) if len(prob_t) else float(prob_df["lat"].mean())
     center_lon = float(prob_t["lon"].mean()) if len(prob_t) else float(prob_df["lon"].mean())
@@ -810,7 +811,7 @@ with tab1:
         G = load_road_graph(center_lat, center_lon)
     except Exception as e:
         G = None
-        st.warning(f"⚠️ Không tải được OSM graph: {e} (cần internet lần đầu).")
+        st.warning(f"âš ï¸ KhÃ´ng táº£i Ä‘Æ°á»£c OSM graph: {e} (cáº§n internet láº§n Ä‘áº§u).")
 
     m = folium.Map(location=[center_lat, center_lon], zoom_start=13, tiles="CartoDB positron")
 
@@ -836,7 +837,7 @@ with tab1:
     if base_lat is not None and base_lon is not None:
         folium.Marker(
             [base_lat, base_lon],
-            popup="🚑 Rescue Base",
+            popup="ðŸš‘ Rescue Base",
             icon=folium.Icon(color="green", icon="home")
         ).add_to(m)
 
@@ -844,7 +845,7 @@ with tab1:
     if selected_sos is not None:
         folium.Marker(
             [float(selected_sos["lat"]), float(selected_sos["lon"])],
-            popup=f"🆘 TARGET {selected_sos['id']}",
+            popup=f"ðŸ†˜ TARGET {selected_sos['id']}",
             icon=folium.Icon(color="red", icon="flag")
         ).add_to(m)
 
@@ -879,9 +880,9 @@ with tab1:
                             folium.PolyLine(coords_l2, color="orange", weight=4, dash_array="8 8").add_to(m)
                         folium.Marker(
                             [sh_lat_en, sh_lon_en],
-                            popup=f"🏠 Staging: {_sh_en.get('name','Staging Point')}<br>Direct ETA too large ({_eta_direct_en:.0f} min)",
+                            popup=f"ðŸ  Staging: {_sh_en.get('name','Staging Point')}<br>Direct ETA too large ({_eta_direct_en:.0f} min)",
                             icon=folium.DivIcon(
-                                html='<div style="font-size:26px;text-align:center;margin-top:-13px;">🏠</div>',
+                                html='<div style="font-size:26px;text-align:center;margin-top:-13px;">ðŸ </div>',
                                 icon_size=(34, 34), icon_anchor=(17, 17),
                             ),
                         ).add_to(m)
@@ -901,7 +902,7 @@ with tab1:
                     draw_route(m, route_coords, color="blue")
                     m.fit_bounds(route_coords, padding=(30, 30))
             except Exception as e:
-                st.warning(f"⚠️ Không tính được route: {e}")
+                st.warning(f"âš ï¸ KhÃ´ng tÃ­nh Ä‘Æ°á»£c route: {e}")
                 _two_leg_info_en = None
         else:
             _two_leg_info_en = None
@@ -926,13 +927,13 @@ with tab1:
         map_data = st_folium(m, height=760, width=1100, key="rescue_map")
 
     with col2:
-        st.markdown("### 📌 Click Insight")
+        st.markdown("### ðŸ“Œ Click Insight")
         st.write(f"**Selected time:** {selected_time}")
 
         if base_lat is not None and base_lon is not None:
             st.info(f"Rescue Base: lat={base_lat:.6f}, lon={base_lon:.6f}")
         else:
-            st.warning("Chưa đặt Rescue Base (click map hoặc bật GPS base).")
+            st.warning("ChÆ°a Ä‘áº·t Rescue Base (click map hoáº·c báº­t GPS base).")
 
         # ---- Rescue Dispatch Visual (English tab) ----
         if selected_sos is not None and base_lat is not None and base_lon is not None and G is not None:
@@ -952,33 +953,33 @@ with tab1:
                         f"""
                         <div style="background:linear-gradient(135deg,#7b2d00,#b34700);
                                     border-radius:12px;padding:16px;color:white;text-align:center;">
-                            <div style="font-size:13px;font-weight:bold;opacity:0.9;">⚠️ Direct ETA too large ({eta_min_panel} min)</div>
+                            <div style="font-size:13px;font-weight:bold;opacity:0.9;">âš ï¸ Direct ETA too large ({eta_min_panel} min)</div>
                             <div style="font-size:13px;margin-top:4px;opacity:0.9;">Re-routing via staging shelter</div>
-                            <div style="font-size:36px;margin-top:8px;">🚑 ➡️ 🏠 ➡️ 🆘</div>
+                            <div style="font-size:36px;margin-top:8px;">ðŸš‘ âž¡ï¸ ðŸ  âž¡ï¸ ðŸ†˜</div>
                             <div style="font-size:15px;font-weight:bold;margin-top:10px;">
-                                🏠 Staging: {ti_en['shelter_name']}
+                                ðŸ  Staging: {ti_en['shelter_name']}
                             </div>
                             <div style="font-size:13px;margin-top:6px;opacity:0.85;">
-                                Leg 1 (base → shelter): <b>{ti_en['dist_leg1_km']:.2f} km</b> | ~{ti_en['eta_leg1_min']} min
+                                Leg 1 (base â†’ shelter): <b>{ti_en['dist_leg1_km']:.2f} km</b> | ~{ti_en['eta_leg1_min']} min
                             </div>
                             <div style="font-size:13px;margin-top:4px;opacity:0.85;">
-                                Leg 2 (shelter → SOS): <b>{ti_en['dist_leg2_km']:.2f} km</b> | ~{ti_en['eta_leg2_min']} min
+                                Leg 2 (shelter â†’ SOS): <b>{ti_en['dist_leg2_km']:.2f} km</b> | ~{ti_en['eta_leg2_min']} min
                             </div>
                             <div style="font-size:13px;margin-top:4px;font-weight:bold;">
                                 Total ETA: ~{ti_en['eta_leg1_min'] + ti_en['eta_leg2_min']} min
                             </div>
-                            <div style="margin-top:10px;font-size:20px;">🚧🌊🏠</div>
+                            <div style="margin-top:10px;font-size:20px;">ðŸš§ðŸŒŠðŸ </div>
                         </div>
                         """,
                         unsafe_allow_html=True,
                     )
-                    st.warning("🟠 2-leg route active — map: blue (leg 1), orange (leg 2).")
+                    st.warning("ðŸŸ  2-leg route active â€” map: blue (leg 1), orange (leg 2).")
                 else:
                     st.markdown(
                         f"""
                         <div style="background:linear-gradient(135deg,#1a472a,#2d6a4f);
                                     border-radius:12px;padding:16px;color:white;text-align:center;">
-                            <div style="font-size:48px;">🚑</div>
+                            <div style="font-size:48px;">ðŸš‘</div>
                             <div style="font-size:18px;font-weight:bold;margin-top:8px;">
                                 RESCUE TEAM DISPATCHED
                             </div>
@@ -991,12 +992,12 @@ with tab1:
                             <div style="font-size:14px;margin-top:4px;opacity:0.85;">
                                 ETA (est.): <b>~{eta_min_panel} min</b>
                             </div>
-                            <div style="margin-top:10px;font-size:22px;">🚧🌊🏠</div>
+                            <div style="margin-top:10px;font-size:22px;">ðŸš§ðŸŒŠðŸ </div>
                         </div>
                         """,
                         unsafe_allow_html=True,
                     )
-                    st.success("🟢 Rescue team en route — follow the animated path on the map.")
+                    st.success("ðŸŸ¢ Rescue team en route â€” follow the animated path on the map.")
             except Exception:
                 pass
 
@@ -1005,16 +1006,16 @@ with tab1:
             click_lon = map_data["last_clicked"]["lng"]
             st.success(f"Clicked: lat={click_lat:.6f}, lon={click_lon:.6f}")
 
-            if click_mode == "Set Rescue Base" and (not str(base_mode).startswith("📍")):
+            if click_mode == "Set Rescue Base" and (not str(base_mode).startswith("ðŸ“")):
                 st.session_state["base_lat"] = float(click_lat)
                 st.session_state["base_lon"] = float(click_lon)
-                st.success("✅ Rescue Base updated by click.")
-            elif click_mode == "Set Rescue Base" and str(base_mode).startswith("📍"):
-                st.info("Base mode đang là GPS — chuyển sang Click mode để set bằng click.")
+                st.success("âœ… Rescue Base updated by click.")
+            elif click_mode == "Set Rescue Base" and str(base_mode).startswith("ðŸ“"):
+                st.info("Base mode Ä‘ang lÃ  GPS â€” chuyá»ƒn sang Click mode Ä‘á»ƒ set báº±ng click.")
 
             prob_t["dist2"] = (prob_t["lat"] - click_lat) ** 2 + (prob_t["lon"] - click_lon) ** 2
             nearest = prob_t.sort_values("dist2").iloc[0]
-            st.markdown("#### ✅ Nearest Prediction")
+            st.markdown("#### âœ… Nearest Prediction")
             st.json({
                 "time": str(nearest["time"]),
                 "X": float(nearest["X"]),
@@ -1024,36 +1025,36 @@ with tab1:
             })
 
             impact, _, zone = compute_click_impact(prob_t, static_base, meta, click_lat, click_lon, BUFFER_RADIUS_M)
-            st.markdown("#### 🧭 Impact (Buffer Zone)")
+            st.markdown("#### ðŸ§­ Impact (Buffer Zone)")
             if impact is None:
-                st.warning("Không có điểm nào trong buffer. Hãy tăng buffer radius.")
+                st.warning("KhÃ´ng cÃ³ Ä‘iá»ƒm nÃ o trong buffer. HÃ£y tÄƒng buffer radius.")
             else:
                 st.metric("Impact score", f"{impact['impact_score']:.2f}")
                 st.metric("Priority", impact["priority_level"])
 
-            st.markdown("#### 🌐 Connected Flood Region")
+            st.markdown("#### ðŸŒ Connected Flood Region")
             poly_conn = None
             if show_connected and ext_t is not None and "flood_mask" in ext_t.columns:
                 poly_conn = connected_flood_polygon(ext_t, click_lat, click_lon)
                 if poly_conn is not None:
-                    st.success("✅ Connected region found")
+                    st.success("âœ… Connected region found")
                 else:
-                    st.warning("Không tạo được vùng liên thông.")
+                    st.warning("KhÃ´ng táº¡o Ä‘Æ°á»£c vÃ¹ng liÃªn thÃ´ng.")
             else:
-                st.info("Bật Connected Flood Region trong sidebar để hiển thị.")
+                st.info("Báº­t Connected Flood Region trong sidebar Ä‘á»ƒ hiá»ƒn thá»‹.")
 
 
 # # =========================================================
-# # TAB 2 — CITIZEN (GPS shared; no extra render)
+# # TAB 2 â€” CITIZEN (GPS shared; no extra render)
 # # =========================================================
 with tab2:
-    st.subheader("🧍 Citizen Safety Map — Vị trí hiện tại & Chỗ trú ẩn gần nhất")
-    st.caption("Citizen GPS lấy từ Shared GPS (sidebar). Không render GPS component thêm lần nào.")
+    st.subheader("ðŸ§ Citizen Safety Map â€” Vá»‹ trÃ­ hiá»‡n táº¡i & Chá»— trÃº áº©n gáº§n nháº¥t")
+    st.caption("Citizen GPS láº¥y tá»« Shared GPS (sidebar). KhÃ´ng render GPS component thÃªm láº§n nÃ o.")
 
     try:
         prob_df2, _extent2 = load_realtime_csv()
     except Exception as e:
-        st.error(f"❌ Lỗi đọc realtime CSV: {e}")
+        st.error(f"âŒ Lá»—i Ä‘á»c realtime CSV: {e}")
         st.stop()
 
     shelters_df2 = load_shelters()
@@ -1071,12 +1072,12 @@ with tab2:
         G2 = load_road_graph(center_lat2, center_lon2)
     except Exception as e:
         G2 = None
-        st.warning(f"⚠️ Không tải được OSM graph: {e}")
+        st.warning(f"âš ï¸ KhÃ´ng táº£i Ä‘Æ°á»£c OSM graph: {e}")
 
-    st.markdown("### 🎯 Chọn vị trí của bạn")
+    st.markdown("### ðŸŽ¯ Chá»n vá»‹ trÃ­ cá»§a báº¡n")
     loc_mode = st.radio(
-        "Chọn cách lấy vị trí",
-        ["📍 Dùng GPS (Shared)", "🖱️ Click trên bản đồ"],
+        "Chá»n cÃ¡ch láº¥y vá»‹ trÃ­",
+        ["ðŸ“ DÃ¹ng GPS (Shared)", "ðŸ–±ï¸ Click trÃªn báº£n Ä‘á»“"],
         index=0,
         key="citizen_loc_mode"
     )
@@ -1085,12 +1086,12 @@ with tab2:
     user_lat, user_lon = None, None
 
     with colA:
-        if str(loc_mode).startswith("📍"):
+        if str(loc_mode).startswith("ðŸ“"):
             if gps_shared:
                 user_lat, user_lon = gps_shared["lat"], gps_shared["lon"]
-                st.success(f"✅ Vị trí của bạn: {user_lat:.6f}, {user_lon:.6f}")
+                st.success(f"âœ… Vá»‹ trÃ­ cá»§a báº¡n: {user_lat:.6f}, {user_lon:.6f}")
             else:
-                st.warning("Chưa có GPS. Hãy Allow location ở sidebar.")
+                st.warning("ChÆ°a cÃ³ GPS. HÃ£y Allow location á»Ÿ sidebar.")
         else:
             cm_select = folium.Map(location=[center_lat2, center_lon2], zoom_start=13, tiles="CartoDB positron")
 
@@ -1098,26 +1099,26 @@ with tab2:
                 for _, sh in shelters_df2.iterrows():
                     folium.Marker(
                         [float(sh["lat"]), float(sh["lon"])],
-                        popup=f"🏠 {sh.get('name','')} | Cap={sh.get('capacity','')}",
+                        popup=f"ðŸ  {sh.get('name','')} | Cap={sh.get('capacity','')}",
                         icon=folium.Icon(color="cadetblue", icon="info-sign")
                     ).add_to(cm_select)
 
-            st.caption("👉 Click một điểm bất kỳ để đặt vị trí của bạn.")
+            st.caption("ðŸ‘‰ Click má»™t Ä‘iá»ƒm báº¥t ká»³ Ä‘á»ƒ Ä‘áº·t vá»‹ trÃ­ cá»§a báº¡n.")
             click_data = st_folium(cm_select, height=760, width=1100, key="citizen_pick")
 
             if click_data and click_data.get("last_clicked"):
                 user_lat = float(click_data["last_clicked"]["lat"])
                 user_lon = float(click_data["last_clicked"]["lng"])
-                st.success(f"✅ Bạn đã chọn: {user_lat:.6f}, {user_lon:.6f}")
+                st.success(f"âœ… Báº¡n Ä‘Ã£ chá»n: {user_lat:.6f}, {user_lon:.6f}")
             else:
-                st.info("Chưa có vị trí được chọn.")
+                st.info("ChÆ°a cÃ³ vá»‹ trÃ­ Ä‘Æ°á»£c chá»n.")
 
         if user_lat is not None and user_lon is not None:
             nearest = find_nearest_shelter(user_lat, user_lon, shelters_df2)
             if nearest is None:
-                st.error("❌ Không có dữ liệu shelters.csv.")
+                st.error("âŒ KhÃ´ng cÃ³ dá»¯ liá»‡u shelters.csv.")
             else:
-                st.markdown("### 🏠 Chỗ trú ẩn gần nhất")
+                st.markdown("### ðŸ  Chá»— trÃº áº©n gáº§n nháº¥t")
                 st.write({
                     "name": nearest.get("name", ""),
                     "shelter_id": nearest.get("shelter_id", ""),
@@ -1129,13 +1130,13 @@ with tab2:
 
                 folium.Marker(
                     [user_lat, user_lon],
-                    popup="🧍 You are here",
+                    popup="ðŸ§ You are here",
                     icon=folium.Icon(color="blue", icon="user")
                 ).add_to(cm)
 
                 folium.Marker(
                     [float(nearest["lat"]), float(nearest["lon"])],
-                    popup=f"🏠 Shelter: {nearest.get('name','')}",
+                    popup=f"ðŸ  Shelter: {nearest.get('name','')}",
                     icon=folium.Icon(color="cadetblue", icon="info-sign")
                 ).add_to(cm)
 
@@ -1147,28 +1148,28 @@ with tab2:
                         )
                         draw_route(cm, route_coords_u, color="purple")
                         cm.fit_bounds(route_coords_u, padding=(30, 30))
-                        st.success(f"🚶 Optimal route distance: {dist_m_u/1000:.2f} km")
+                        st.success(f"ðŸš¶ Optimal route distance: {dist_m_u/1000:.2f} km")
                     except Exception as e:
-                        st.warning(f"⚠️ Không tính được route: {e}")
+                        st.warning(f"âš ï¸ KhÃ´ng tÃ­nh Ä‘Æ°á»£c route: {e}")
 
                 st_folium(cm, height=760, width=1100, key="citizen_result_map")
 
     with colB:
-        st.markdown("### 📌 Shelters")
+        st.markdown("### ðŸ“Œ Shelters")
         if len(shelters_df2) == 0:
-            st.error("Không có shelters.csv")
+            st.error("KhÃ´ng cÃ³ shelters.csv")
         else:
             st.dataframe(shelters_df2, use_container_width=True, height=320)
 
         st.markdown("---")
-        st.markdown("### 🆘 Recent SOS")
+        st.markdown("### ðŸ†˜ Recent SOS")
         try:
             recent_sos = load_sos().sort_values("time", ascending=False).head(15)
             if len(recent_sos) == 0:
-                st.info("Chưa có SOS nào")
+                st.info("ChÆ°a cÃ³ SOS nÃ o")
             else:
                 show_cols = [c for c in ["id","time","status","lat","lon","note"] if c in recent_sos.columns]
                 st.dataframe(recent_sos[show_cols], use_container_width=True, height=260)
         except Exception as e:
-            st.warning(f"Không đọc được SOS: {e}")
+            st.warning(f"KhÃ´ng Ä‘á»c Ä‘Æ°á»£c SOS: {e}")
 

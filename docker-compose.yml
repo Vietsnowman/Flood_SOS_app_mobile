@@ -3,11 +3,17 @@
 #
 # Services:
 #   mongodb          — MongoDB :27017
-#   sos-backend      — Node.js Backend :3002
-#   priority-api     — FastAPI Urgency Scoring :8765
+#   sos-backend      — Node.js Backend :3002  (Socket.IO + Community Rescue P2P)
+#   priority-api     — FastAPI Urgency Scoring + Flood Zones :8765
 #   routing-api      — FastAPI Flood-Aware Routing :8766
 #   streamlit-dash   — Streamlit Dashboard Điều Phối :8501
 #   streamlit-sos    — Streamlit SOS Map + Shelter :8502
+#
+# Thay đổi mới nhất:
+#   - Community Rescue P2P: Socket.IO broadcast nearby_sos trong 500m
+#   - /api/flood-zones proxy từ Node → priority-api GET /flood-zones
+#   - SOSAlert schema thêm needs_help + mobility_status
+#   - Node 18 hỗ trợ native fetch() → không cần node-fetch
 
 version: "3.9"
 
@@ -26,9 +32,10 @@ services:
       - floodsos-net
 
   # ─── Node.js SOS Backend ──────────────────────────────────────────────────────
+  # Node 18 có sẵn fetch() native — server.js dùng fetch() để gọi priority-api
   sos-backend:
     build:
-      context: ./FloodSOS-Complete/Sos-backend
+      context: ./Floodsos1/Sos-backend
       dockerfile: Dockerfile
     container_name: floodsos-backend
     restart: unless-stopped
@@ -38,30 +45,37 @@ services:
       - PORT=3002
       - MONGO_URI=mongodb://mongodb:27017/floodsos
       - PRIORITY_API_URL=http://priority-api:8765/predict
+      - FLOOD_ZONES_URL=http://priority-api:8765/flood-zones
       - ROUTING_API_URL=http://routing-api:8766/route
       - OPENWEATHER_KEY=${OPENWEATHER_KEY:-3e3ec7e28ca89e66bac0a9ef59e5ab81}
     volumes:
-      # Share realtime_outputs between Node.js and Python services
-      - realtime_outputs:/app/../../Gop_app/realtime_outputs
-      - ./FloodSOS-Complete/Sos-backend/uploads:/app/uploads
+      - ./Floodsos1/Sos-backend/uploads:/app/uploads
     depends_on:
       - mongodb
+      - priority-api
     networks:
       - floodsos-net
 
-  # ─── Priority API (FastAPI — Urgency Scoring) ─────────────────────────────────
+  # ─── Priority API (FastAPI — Urgency Scoring + Flood Zones) ───────────────────
+  # Endpoint mới: GET /flood-zones → đọc base_points_static.csv → trả p_flood
+  # base_points_static.csv nằm trong ./Gop_app/ → được mount vào /app
   priority-api:
     build:
       context: ./Gop_app
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     container_name: floodsos-priority-api
     restart: unless-stopped
-    command: ["uv", "run", "uvicorn", "priority_api:app", "--host", "0.0.0.0", "--port", "8765"]
+    command: ["python", "-m", "uvicorn", "priority_api:app", "--host", "0.0.0.0", "--port", "8765"]
     ports:
       - "8765:8765"
     volumes:
-      - ./Gop_app:/app
       - realtime_outputs:/app/realtime_outputs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8765/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     networks:
       - floodsos-net
 
@@ -69,14 +83,13 @@ services:
   routing-api:
     build:
       context: ./Gop_app
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     container_name: floodsos-routing-api
     restart: unless-stopped
-    command: ["uv", "run", "uvicorn", "routing_api:app", "--host", "0.0.0.0", "--port", "8766"]
+    command: ["python", "-m", "uvicorn", "routing_api:app", "--host", "0.0.0.0", "--port", "8766"]
     ports:
       - "8766:8766"
     volumes:
-      - ./Gop_app:/app
       - realtime_outputs:/app/realtime_outputs
     networks:
       - floodsos-net
@@ -92,7 +105,6 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./Gop_app:/app
       - realtime_outputs:/app/realtime_outputs
     networks:
       - floodsos-net
@@ -108,7 +120,6 @@ services:
     ports:
       - "8502:8502"
     volumes:
-      - ./Gop_app:/app
       - realtime_outputs:/app/realtime_outputs
     networks:
       - floodsos-net
@@ -117,7 +128,6 @@ services:
 volumes:
   mongo_data:
     driver: local
-  # Named volume để chia sẻ thư mục realtime_outputs giữa các services
   realtime_outputs:
     driver: local
 

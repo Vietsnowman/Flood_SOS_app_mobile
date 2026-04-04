@@ -1,0 +1,39 @@
+# Dockerfile.api — Lightweight image for priority_api + routing_api
+# Không cần torch/CUDA (~4GB) vì API chỉ dùng: fastapi, uvicorn,
+# scikit-learn, lightgbm, pandas, numpy, shapely, osmnx
+FROM python:3.11.9-slim
+
+WORKDIR /app
+
+# System deps cho osmnx/shapely
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgeos-dev curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies với pip (không cần uv)
+# Bước 1: torch CPU-only (~230MB) thay vì CUDA version (~4GB)
+RUN pip install --no-cache-dir \
+    torch --index-url https://download.pytorch.org/whl/cpu
+
+# Bước 2: Các thư viện AI core + API
+RUN pip install --no-cache-dir \
+    "fastapi>=0.111.0" \
+    "uvicorn[standard]>=0.30.0" \
+    "scikit-learn>=1.5.1" \
+    "lightgbm>=4.4.0" \
+    "pandas>=2.2.2" \
+    "numpy>=1.26.4" \
+    "scipy>=1.13.1" \
+    "joblib>=1.4.2" \
+    "pymongo>=4.8.0" \
+    "requests>=2.32.3" \
+    "pyproj>=3.6.1" \
+    "shapely>=2.0.6" \
+    "networkx>=3.3" \
+    "osmnx>=1.9.4" \
+    "pydantic>=2.0.0"
+
+# Copy application source
+COPY . .
+
+CMD ["python", "-m", "uvicorn", "priority_api:app", "--host", "0.0.0.0", "--port", "8765"]

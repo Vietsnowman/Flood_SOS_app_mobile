@@ -8,10 +8,10 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 # Copy dependency files first (layer caching)
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
 # Install all Python dependencies into the system environment
-RUN uv sync --no-dev --system
+RUN uv sync --no-dev
 
 # Copy application source
 COPY . .
