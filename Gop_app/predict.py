@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import joblib
+import streamlit as st
 
 from open_meteo import fetch_open_meteo_daily
 from feature_engineering import build_lag_rolling_features, attach_static_features, add_time_features
@@ -13,6 +14,7 @@ def normalize(x):
     x = np.array(x, dtype=float)
     return (x - x.min()) / (x.max() - x.min() + 1e-9)
 
+@st.cache_resource
 def load_models():
     prob_pack = joblib.load(MODEL_PROB_PATH)
     area_pack = joblib.load(MODEL_AREA_PATH)

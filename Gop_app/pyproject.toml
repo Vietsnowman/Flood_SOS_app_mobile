@@ -44,6 +44,14 @@ dependencies = [
 # Gop_app là tập hợp scripts, không phải Python package → không build wheel.
 package = false
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.backends.legacy:build"

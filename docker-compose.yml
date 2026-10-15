@@ -1,0 +1,143 @@
+# docker-compose.yml — FloodSOS Full System
+# Chạy 1 lệnh để khởi động toàn bộ hệ thống: docker compose up -d
+#
+# Services:
+#   mongodb          — MongoDB :27017
+#   sos-backend      — Node.js Backend :3002  (Socket.IO + Community Rescue P2P)
+#   priority-api     — FastAPI Urgency Scoring + Flood Zones :8765
+#   routing-api      — FastAPI Flood-Aware Routing :8766
+#   streamlit-dash   — Streamlit Dashboard Điều Phối :8501
+#   streamlit-sos    — Streamlit SOS Map + Shelter :8502
+#
+# Thay đổi mới nhất:
+#   - Community Rescue P2P: Socket.IO broadcast nearby_sos trong 500m
+#   - /api/flood-zones proxy từ Node → priority-api GET /flood-zones
+#   - SOSAlert schema thêm needs_help + mobility_status
+#   - Node 18 hỗ trợ native fetch() → không cần node-fetch
+
+version: "3.9"
+
+services:
+
+  # ─── MongoDB ──────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: floodsos-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - floodsos-net
+
+  # ─── Node.js SOS Backend ──────────────────────────────────────────────────────
+  # Node 18 có sẵn fetch() native — server.js dùng fetch() để gọi priority-api
+  sos-backend:
+    build:
+      context: ./Floodsos1/Sos-backend
+      dockerfile: Dockerfile
+    container_name: floodsos-backend
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGO_URI=mongodb://mongodb:27017/floodsos
+      - PRIORITY_API_URL=http://priority-api:8765/predict
+      - FLOOD_ZONES_URL=http://priority-api:8765/flood-zones
+      - ROUTING_API_URL=http://routing-api:8766/route
+      - OPENWEATHER_KEY=${OPENWEATHER_KEY:-3e3ec7e28ca89e66bac0a9ef59e5ab81}
+    volumes:
+      - ./Floodsos1/Sos-backend/uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - priority-api
+    networks:
+      - floodsos-net
+
+  # ─── Priority API (FastAPI — Urgency Scoring + Flood Zones) ───────────────────
+  # Endpoint mới: GET /flood-zones → đọc base_points_static.csv → trả p_flood
+  # base_points_static.csv nằm trong ./Gop_app/ → được mount vào /app
+  priority-api:
+    build:
+      context: ./Gop_app
+      dockerfile: Dockerfile.api
+    container_name: floodsos-priority-api
+    restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "priority_api:app", "--host", "0.0.0.0", "--port", "8765"]
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./Gop_app/realtime_outputs:/app/realtime_outputs
+      - ./Gop_app/models:/app/models
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8765/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - floodsos-net
+
+  # ─── Routing API (FastAPI — Flood-Aware Routing) ──────────────────────────────
+  routing-api:
+    build:
+      context: ./Gop_app
+      dockerfile: Dockerfile.api
+    container_name: floodsos-routing-api
+    restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "routing_api:app", "--host", "0.0.0.0", "--port", "8766"]
+    ports:
+      - "8766:8766"
+    volumes:
+      - ./Gop_app/realtime_outputs:/app/realtime_outputs
+      - ./Gop_app/models:/app/models
+    networks:
+      - floodsos-net
+
+  # ─── Streamlit Dashboard Điều Phối ───────────────────────────────────────────
+  streamlit-dash:
+    build:
+      context: ./Gop_app
+      dockerfile: Dockerfile
+    container_name: floodsos-streamlit-dash
+    restart: unless-stopped
+    command: ["uv", "run", "streamlit", "run", "app6.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./Gop_app/realtime_outputs:/app/realtime_outputs
+      - ./Gop_app/cache:/app/cache
+      - ./Gop_app/models:/app/models
+      - ./Gop_app/data:/app/data
+    networks:
+      - floodsos-net
+
+  # ─── Streamlit SOS Map + Shelter ─────────────────────────────────────────────
+  streamlit-sos:
+    build:
+      context: ./Gop_app
+      dockerfile: Dockerfile
+    container_name: floodsos-streamlit-sos
+    restart: unless-stopped
+    command: ["uv", "run", "streamlit", "run", "app_SOS_shelters7.py", "--server.port", "8502", "--server.address", "0.0.0.0"]
+    ports:
+      - "8502:8502"
+    volumes:
+      - ./Gop_app/realtime_outputs:/app/realtime_outputs
+      - ./Gop_app/cache:/app/cache
+      - ./Gop_app/models:/app/models
+      - ./Gop_app/data:/app/data
+    networks:
+      - floodsos-net
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+
+# ─── Network ──────────────────────────────────────────────────────────────────
+networks:
+  floodsos-net:
+    driver: bridge

@@ -1,6 +1,8 @@
 import requests
 import pandas as pd
+import streamlit as st
 
+@st.cache_data(ttl=3600)
 def fetch_open_meteo_daily(lat, lon):
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
